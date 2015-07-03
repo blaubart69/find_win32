@@ -9,35 +9,51 @@ namespace find
 {
     class Program
     {
-        static bool GetArgs(string[] args, out string Dirname, out string Pattern, out string OutFilename)
-        {
-            Dirname = "";
-            Pattern = null;
-            OutFilename = null;
-
-            for (int i = 0; i < args.Length; i++ )
-            {
-                string key = args[i].ToLower();
-                     if (key.StartsWith("-dir")) Dirname = args[i + 1];
-                else if (key.StartsWith("-pattern")) Pattern = args[i + 1];
-                else if (key.StartsWith("-out")) OutFilename = args[i + 1];
-            }
-            return !String.IsNullOrEmpty(Dirname);
-        }
         static int Main(string[] args)
         {
-            string dirname;
-            string pattern;
-            string OutFilename;
+            string Dirname = null;
+            string Pattern = null;
+            string OutFilename = null;
+            bool show_help = false;
+            bool progress = false;
+
             const string ErrFilename = "find.err.txt";
+
             TextWriter ErrWriter = null;
             TextWriter OutWriter = null;
 
-
-            if (!GetArgs(args, out dirname, out pattern, out OutFilename))
+            var p = new Mono.Options.OptionSet() {
+                { "r|rname=",   "regex applied to the filename",         v => Pattern = v },
+                { "o|out=",     "filename for result of files (UTF8)",   v => OutFilename = v },
+                { "p|progress=","filename for result of files (UTF8)",   v => progress = (v != null) },
+                //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
+                { "h|help",   "show this message and exit",           v => show_help = v != null },
+            };
+            try
             {
-                Console.Error.WriteLine("usage: find {-dir Name} [-pattern RegEx_for_Filename] [-out OutFilename]");
-                return 1;
+                List<string> ExtraParams = p.Parse(args);
+                if ( ExtraParams.Count() == 0 )
+                {
+                    Console.Error.WriteLine("E: You must specify at least one directory name.");
+                    Console.Error.WriteLine();
+                    ShowHelp(p);
+                    return 8;
+                }
+                else
+                {
+                    Dirname = ExtraParams[0];
+                }
+
+            }
+            catch (Mono.Options.OptionException oex)
+            {
+                Console.WriteLine(oex.Message);
+                return 8;
+            }
+            if (show_help)
+            {
+                ShowHelp(p);
+                return 8;
             }
 
             try
@@ -51,7 +67,7 @@ namespace find
                 Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) => 
                 { WriteStats(AllBytes, MatchedBytes, AllFiles, MatchedFiles, AllDirs); };
 
-                foreach (var entry in Spi.IO.Directory.Entries(dirname, -1, null, null))
+                foreach (var entry in Spi.IO.Directory.Entries(Dirname, -1, null, null))
                 {
                     if (entry.LastError != 0)
                     {
@@ -62,7 +78,10 @@ namespace find
                     if ( entry.isDirectory )
                     {
                         AllDirs += 1;
-                        Console.Error.Write("[{0}]\r", entry.Dirname);
+                        if (progress)
+                        {
+                            Console.Error.Write("[{0}]\r", entry.Dirname);
+                        }
                         continue;
                     }
 
@@ -70,9 +89,9 @@ namespace find
                     AllFiles += 1;
 
                     bool PrintEntry = true;
-                    if (pattern != null) 
+                    if (Pattern != null) 
                     {
-                        PrintEntry = Regex.IsMatch(entry.Filename, pattern);
+                        PrintEntry = Regex.IsMatch(entry.Filename, Pattern);
                     }
 
                     if (PrintEntry)
@@ -124,5 +143,29 @@ namespace find
                     AllDirs
                     );
         }
+        static void ShowHelp(Mono.Options.OptionSet p)
+        {
+            Console.WriteLine("Usage: find [OPTIONS]+ directory");
+            Console.WriteLine("lists all files in the given dir + subdirs");
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            p.WriteOptionDescriptions(Console.Out);
+        }
+        /*
+        static bool GetArgs(string[] args, out string Dirname, out string Pattern, out string OutFilename)
+        {
+            Dirname = "";
+            Pattern = null;
+            OutFilename = null;
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                string key = args[i].ToLower();
+                if (key.StartsWith("-dir")) Dirname = args[i + 1];
+                else if (key.StartsWith("-pattern")) Pattern = args[i + 1];
+                else if (key.StartsWith("-out")) OutFilename = args[i + 1];
+            }
+            return !String.IsNullOrEmpty(Dirname);
+        }*/
     }
 }
