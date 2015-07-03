@@ -7,6 +7,14 @@ using System.Text.RegularExpressions;
 
 namespace find
 {
+    struct Stats
+    {
+        public UInt64 AllBytes;
+        public UInt64 MatchedBytes;
+        public UInt64 AllFiles;
+        public UInt64 AllDirs;
+        public UInt64 MatchedFiles;
+    }
     class Program
     {
         static int Main(string[] args)
@@ -58,14 +66,10 @@ namespace find
 
             try
             {
-                UInt64 AllBytes = 0;
-                UInt64 MatchedBytes = 0;
-                UInt64 AllFiles = 0;
-                UInt64 AllDirs = 0;
-                UInt64 MatchedFiles = 0;
+                Stats stats = new Stats();
 
-                Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) => 
-                { WriteStats(AllBytes, MatchedBytes, AllFiles, MatchedFiles, AllDirs); };
+                Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
+                { WriteStats(stats); };
 
                 foreach (var entry in Spi.IO.Directory.Entries(Dirname, -1, null, null))
                 {
@@ -77,7 +81,7 @@ namespace find
 
                     if ( entry.isDirectory )
                     {
-                        AllDirs += 1;
+                        stats.AllDirs += 1;
                         if (progress)
                         {
                             Console.Error.Write("[{0}]\r", entry.Dirname);
@@ -85,8 +89,8 @@ namespace find
                         continue;
                     }
 
-                    AllBytes += entry.Filesize;
-                    AllFiles += 1;
+                    stats.AllBytes += entry.Filesize;
+                    stats.AllFiles += 1;
 
                     bool PrintEntry = true;
                     if (Pattern != null) 
@@ -96,8 +100,8 @@ namespace find
 
                     if (PrintEntry)
                     {
-                        MatchedBytes += entry.Filesize;
-                        MatchedFiles += 1;
+                        stats.MatchedBytes += entry.Filesize;
+                        stats.MatchedFiles += 1;
 
                         WriteToConsoleAndStream(OutFilename, ref OutWriter, Console.Out, "{0} {1,12} {2}",
                             entry.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
@@ -106,7 +110,7 @@ namespace find
 
                     }
                 }
-                WriteStats(AllBytes, MatchedBytes, AllFiles, MatchedFiles, AllDirs);
+                WriteStats(stats);
             }
             finally
             {
@@ -131,16 +135,16 @@ namespace find
 
             ConsoleWriter.WriteLine(Format, args);
         }
-        static void WriteStats(UInt64 AllBytes, UInt64 MatchedBytes, UInt64 AllFiles, UInt64 MatchedFiles, UInt64 AllDirs)
+        static void WriteStats(Stats stats)
         {
             Console.Error.WriteLine("\nbytes seen [{0}] ({1}),  bytes matching files [{2}] ({3}), files seen [{4}], files matched [{5}], dirs seen [{6}]",
-                    AllBytes,
-                    Spi.IO.Misc.GetPrettyFilesize(AllBytes),
-                    MatchedBytes,
-                    Spi.IO.Misc.GetPrettyFilesize(MatchedBytes),
-                    AllFiles,
-                    MatchedFiles,
-                    AllDirs
+                    stats.AllBytes,
+                    Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
+                    stats.MatchedBytes,
+                    Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes),
+                    stats.AllFiles,
+                    stats.MatchedFiles,
+                    stats.AllDirs
                     );
         }
         static void ShowHelp(Mono.Options.OptionSet p)
