@@ -131,7 +131,7 @@ namespace find
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
-            Console.WriteLine("Usage: find [OPTIONS]+ [DIRECTORY]...");
+            Console.WriteLine("Usage: find [OPTIONS] [DIRECTORY]...");
             Console.WriteLine("lists all files in the given dir + subdirs");
             Console.WriteLine();
             Console.WriteLine("Options:");
