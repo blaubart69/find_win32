@@ -15,52 +15,26 @@ namespace find
         public UInt64 AllDirs;
         public UInt64 MatchedFiles;
     }
+    class Opts
+    {
+        public IEnumerable<string> Dirs;
+        public string Pattern;
+        public string OutFilename;
+        public bool show_help;
+        public bool progress;
+    }
     class Program
     {
         static int Main(string[] args)
         {
-            string Dirname = null;
-            string Pattern = null;
-            string OutFilename = null;
-            bool show_help = false;
-            bool progress = false;
-
             const string ErrFilename = "find.err.txt";
 
             TextWriter ErrWriter = null;
             TextWriter OutWriter = null;
 
-            var p = new Mono.Options.OptionSet() {
-                { "r|rname=",   "regex applied to the filename",         v => Pattern = v },
-                { "o|out=",     "filename for result of files (UTF8)",   v => OutFilename = v },
-                { "p|progress=","filename for result of files (UTF8)",   v => progress = (v != null) },
-                //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
-                { "h|help",   "show this message and exit",           v => show_help = v != null },
-            };
-            try
+            Opts opts;
+            if ( (opts=GetOpts(args)) == null)
             {
-                List<string> ExtraParams = p.Parse(args);
-                if ( ExtraParams.Count() == 0 )
-                {
-                    Console.Error.WriteLine("E: You must specify at least one directory name.");
-                    Console.Error.WriteLine();
-                    ShowHelp(p);
-                    return 8;
-                }
-                else
-                {
-                    Dirname = ExtraParams[0];
-                }
-
-            }
-            catch (Mono.Options.OptionException oex)
-            {
-                Console.WriteLine(oex.Message);
-                return 8;
-            }
-            if (show_help)
-            {
-                ShowHelp(p);
                 return 8;
             }
 
@@ -71,44 +45,9 @@ namespace find
                 Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
                 { WriteStats(stats); };
 
-                foreach (var entry in Spi.IO.Directory.Entries(Dirname, -1, null, null))
+                foreach (string dir in opts.Dirs)
                 {
-                    if (entry.LastError != 0)
-                    {
-                        WriteToConsoleAndStream(ErrFilename, ref ErrWriter, Console.Error, "rc [{0}] dir [{1}]", entry.LastError, entry.Fullname);
-                        continue;
-                    }
-
-                    if ( entry.isDirectory )
-                    {
-                        stats.AllDirs += 1;
-                        if (progress)
-                        {
-                            Console.Error.Write("[{0}]\r", entry.Dirname);
-                        }
-                        continue;
-                    }
-
-                    stats.AllBytes += entry.Filesize;
-                    stats.AllFiles += 1;
-
-                    bool PrintEntry = true;
-                    if (Pattern != null) 
-                    {
-                        PrintEntry = Regex.IsMatch(entry.Filename, Pattern);
-                    }
-
-                    if (PrintEntry)
-                    {
-                        stats.MatchedBytes += entry.Filesize;
-                        stats.MatchedFiles += 1;
-
-                        WriteToConsoleAndStream(OutFilename, ref OutWriter, Console.Out, "{0} {1,12} {2}",
-                            entry.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                            entry.Filesize,
-                            entry.Fullname);
-
-                    }
+                    EnumDir(dir, opts.Pattern, opts.OutFilename, opts.progress, ErrFilename, ref ErrWriter, ref OutWriter, ref stats);
                 }
                 WriteStats(stats);
             }
@@ -118,6 +57,49 @@ namespace find
                 if (OutWriter != null) { OutWriter.Close(); }
             }
             return 0;
+        }
+
+        private static void EnumDir(string Dirname, string Pattern, string OutFilename, bool progress, string ErrFilename, ref TextWriter ErrWriter, ref TextWriter OutWriter, ref Stats stats)
+        {
+            foreach (var entry in Spi.IO.Directory.Entries(Dirname, -1, null, null))
+            {
+                if (entry.LastError != 0)
+                {
+                    WriteToConsoleAndStream(ErrFilename, ref ErrWriter, Console.Error, "rc [{0}] dir [{1}]", entry.LastError, entry.Fullname);
+                    continue;
+                }
+
+                if (entry.isDirectory)
+                {
+                    stats.AllDirs += 1;
+                    if (progress)
+                    {
+                        Console.Error.Write("[{0}]\r", entry.Dirname);
+                    }
+                    continue;
+                }
+
+                stats.AllBytes += entry.Filesize;
+                stats.AllFiles += 1;
+
+                bool PrintEntry = true;
+                if (Pattern != null)
+                {
+                    PrintEntry = Regex.IsMatch(entry.Filename, Pattern);
+                }
+
+                if (PrintEntry)
+                {
+                    stats.MatchedBytes += entry.Filesize;
+                    stats.MatchedFiles += 1;
+
+                    WriteToConsoleAndStream(OutFilename, ref OutWriter, Console.Out, "{0} {1,12} {2}",
+                        entry.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        entry.Filesize,
+                        entry.Fullname);
+
+                }
+            }
         }
         static void WriteToConsoleAndStream(string Filename, ref TextWriter FileWriter, TextWriter ConsoleWriter, string Format, params object[] args)
         {
@@ -154,6 +136,40 @@ namespace find
             Console.WriteLine();
             Console.WriteLine("Options:");
             p.WriteOptionDescriptions(Console.Out);
+        }
+        static Opts GetOpts(string[] args)
+        {
+            Opts opts = new Opts();
+            var p = new Mono.Options.OptionSet() {
+                { "r|rname=",   "regex applied to the filename",         v => opts.Pattern = v },
+                { "o|out=",     "filename for result of files (UTF8)",   v => opts.OutFilename = v },
+                { "p|progress","prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
+                //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
+                { "h|help",   "show this message and exit",           v => opts.show_help = v != null }
+            };
+            try
+            {
+                var ExtraParams = p.Parse(args);
+                if (ExtraParams.Count() == 0)
+                {
+                    Console.Error.WriteLine("E: You must specify at least one directory name.");
+                    Console.Error.WriteLine();
+                    ShowHelp(p);
+                    return null;
+                }
+                opts.Dirs = ExtraParams;
+            }
+            catch (Mono.Options.OptionException oex)
+            {
+                Console.WriteLine(oex.Message);
+                return null;
+            }
+            if (opts.show_help)
+            {
+                ShowHelp(p);
+                return null;
+            }
+            return opts;
         }
         /*
         static bool GetArgs(string[] args, out string Dirname, out string Pattern, out string OutFilename)
