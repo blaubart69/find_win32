@@ -17,7 +17,7 @@ namespace find
     }
     class Opts
     {
-        public IEnumerable<string> Dirs;
+        public IList<string> Dirs;
         public string Pattern;
         public string OutFilename;
         public bool show_help;
@@ -131,7 +131,7 @@ namespace find
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
-            Console.WriteLine("Usage: find [OPTIONS]+ directory");
+            Console.WriteLine("Usage: find [OPTIONS]+ [DIRECTORY]...");
             Console.WriteLine("lists all files in the given dir + subdirs");
             Console.WriteLine();
             Console.WriteLine("Options:");
@@ -149,15 +149,11 @@ namespace find
             };
             try
             {
-                var ExtraParams = p.Parse(args);
-                if (ExtraParams.Count() == 0)
+                opts.Dirs = p.Parse(args);
+                if (opts.Dirs.Count() == 0)
                 {
-                    Console.Error.WriteLine("E: You must specify at least one directory name.");
-                    Console.Error.WriteLine();
-                    ShowHelp(p);
-                    return null;
+                    opts.Dirs.Add(Directory.GetCurrentDirectory());
                 }
-                opts.Dirs = ExtraParams;
             }
             catch (Mono.Options.OptionException oex)
             {
@@ -171,21 +167,5 @@ namespace find
             }
             return opts;
         }
-        /*
-        static bool GetArgs(string[] args, out string Dirname, out string Pattern, out string OutFilename)
-        {
-            Dirname = "";
-            Pattern = null;
-            OutFilename = null;
-
-            for (int i = 0; i < args.Length; i++)
-            {
-                string key = args[i].ToLower();
-                if (key.StartsWith("-dir")) Dirname = args[i + 1];
-                else if (key.StartsWith("-pattern")) Pattern = args[i + 1];
-                else if (key.StartsWith("-out")) OutFilename = args[i + 1];
-            }
-            return !String.IsNullOrEmpty(Dirname);
-        }*/
     }
 }
