@@ -30,7 +30,19 @@ namespace Spi.IO
             public UInt64 Filesize { get { return (((UInt64)FindData.nFileSizeHigh) << 32) | (UInt64)FindData.nFileSizeLow; } }
             public string Dirname  { get { return Dir.ToString(); } }
             public string DirAndFilenameFromStartDir { get { return GetFilenameSinceBaseDir(Dirname, BaseDirLen, FindData.cFileName); } }
-            public string Fullname { get { return Dirname + Path.DirectorySeparatorChar + FindData.cFileName; } }
+            public string Fullname { 
+                get 
+                {
+                    if (isDirectory)
+                    {
+                        return Dirname;
+                    }
+                    else
+                    {
+                        return Dirname + Path.DirectorySeparatorChar + FindData.cFileName;
+                    }
+                } 
+            }
             public DateTime LastWriteTime { get { return Spi.IO.Misc.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime); } }
 
             public DirEntry(int LastError, StringBuilder Dirname, Spi.Win32.WIN32_FIND_DATA FindData, int BaseDirLen)
@@ -77,9 +89,9 @@ namespace Spi.IO
                 {
                     findFirstFile = false;
 
-                    
-
-                    SearchHandle = Win32.FindFirstFile(dir.ToString() + "\\*", out find_data);
+                    dir.Append("\\*");
+                    SearchHandle = Win32.FindFirstFile(dir.ToString(), out find_data);
+                    dir.Length -= 2;    // remove \* added before
                     if (SearchHandle.IsInvalid)
                     {
                         yield return new DirEntry(

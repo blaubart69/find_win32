@@ -2,8 +2,8 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
+
+using Spi;
 
 namespace find
 {
@@ -26,15 +26,10 @@ namespace find
     }
     class Program
     {
-        static readonly string[] FormatKeyWords = new string[] { "fullname" };
+        static readonly string ErrFilename = Path.Combine(Environment.GetEnvironmentVariable("temp"), "find.err.txt");
 
         static int Main(string[] args)
         {
-            const string ErrFilename = "find.err.txt";
-
-            TextWriter ErrWriter = null;
-            TextWriter OutWriter = null;
-
             Opts opts;
             if ( (opts=GetOpts(args)) == null)
             {
@@ -53,122 +48,37 @@ namespace find
                     CrtlC_pressed = true;
                 };
 
-                foreach (string dir in opts.Dirs)
+                using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
+                using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
                 {
-                    if ( CrtlC_pressed )
+                    foreach (string dir in opts.Dirs)
                     {
-                        break;
+                        EnumDir.Run(dir, opts, ref stats, ref CrtlC_pressed, 
+                            (filenamefound) => OutWriter.WriteLine(filenamefound), 
+                            (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir));
                     }
-                    EnumDir(dir, opts, ErrFilename, ref ErrWriter, ref OutWriter, ref stats, ref CrtlC_pressed);
+                    if (ErrWriter.hasDataWritten())
+                    {
+                        Console.Error.WriteLine("\nerrors were logged to file [{0}]\n", ErrFilename);
+                    }
                 }
                 WriteStats(stats);
             }
-            finally
+            catch (Exception ex)
             {
-                CloseWriters(ErrWriter, OutWriter);
+                Console.Error.WriteLine(ex.Message);
+                Console.Error.WriteLine(ex.StackTrace);
+                return 12;
             }
             return 0;
         }
-
-        static void EnumDir(string Dirname, Opts opts, string ErrFilename, ref TextWriter ErrWriter, ref TextWriter OutWriter, ref Stats stats, ref bool CrtlC_pressed)
-        {
-            foreach (var entry in Spi.IO.Directory.Entries(Dirname, -1, null, null))
-            {
-                if (entry.LastError != 0)
-                {
-                    WriteToConsoleAndStream(ErrFilename, ref ErrWriter, Console.Error, "rc [{0}] dir [{1}]", entry.LastError, entry.Fullname);
-                    continue;
-                }
-
-                if (CrtlC_pressed)
-                {
-                    break;
-                }
-
-                if (entry.isDirectory)
-                {
-                    stats.AllDirs += 1;
-                    if (opts.progress)
-                    {
-                        Console.Error.Write("[{0}]\r", entry.Dirname);
-                    }
-                    continue;
-                }
-
-                stats.AllBytes += entry.Filesize;
-                stats.AllFiles += 1;
-
-                bool PrintEntry = true;
-                if (opts.Pattern != null)
-                {
-                    PrintEntry = Regex.IsMatch(entry.Filename, opts.Pattern);
-                }
-
-                if (PrintEntry)
-                {
-                    stats.MatchedBytes += entry.Filesize;
-                    stats.MatchedFiles += 1;
-
-                    if (String.IsNullOrEmpty(opts.FormatString))
-                    {
-                        WriteToConsoleAndStream(opts.OutFilename, ref OutWriter, Console.Out, "{0} {1,12} {2}",
-                            entry.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                            entry.Filesize,
-                            entry.Fullname);
-                    }
-                    else
-                    {
-                        WriteToConsoleAndStream(opts.OutFilename, ref OutWriter, Console.Out, FormatOutput(opts.FormatString, entry));
-                    }
-
-                }
-            }
-        }
-        static string FormatOutput(string Format, Spi.IO.Directory.DirEntry entry)
-        {
-            StringBuilder sb = new StringBuilder(Format);
-            foreach ( string magic in FormatKeyWords )
-            {
-                string ReplaceString = null;
-                switch (magic)
-                {
-                    case "fullname": ReplaceString = entry.Fullname; break;
-                }
-                if (!String.IsNullOrEmpty(ReplaceString))
-                {
-                    sb.Replace("%" + magic + "%", ReplaceString);
-                }
-            }
-
-            return sb.ToString();
-        }
-        static void WriteToConsoleAndStream(string Filename, ref TextWriter FileWriter, TextWriter ConsoleWriter, string Format, params object[] args)
-        {
-            if ( !String.IsNullOrEmpty(Filename) )
-            {
-                if (FileWriter == null)
-                {
-                    FileWriter = new StreamWriter(
-                        Filename,
-                        false,      // append?
-                        System.Text.Encoding.UTF8);
-                }
-                FileWriter.WriteLine(Format, args);
-            }
-
-            ConsoleWriter.WriteLine(Format, args);
-        }
         static void WriteStats(Stats stats)
         {
-            Console.Error.WriteLine("\nbytes seen [{0}] ({1}),  bytes matching files [{2}] ({3}), files seen [{4}], files matched [{5}], dirs seen [{6}]",
-                    stats.AllBytes,
-                    Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
-                    stats.MatchedBytes,
-                    Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes),
-                    stats.AllFiles,
-                    stats.MatchedFiles,
-                    stats.AllDirs
-                    );
+            Console.Error.WriteLine(
+                  "dirs/files     {0}/{1} ({2})\n"
+                + "files matched  {3} ({4})",
+                    stats.AllDirs, stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
+                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
@@ -218,16 +128,6 @@ namespace find
                 return null;
             }
             return opts;
-        }
-        static void CloseWriters(params TextWriter[] Writer)
-        {
-            foreach (TextWriter w in Writer)
-            {
-                if ( w != null )
-                {
-                    w.Close();
-                }
-            }
         }
     }
 }
