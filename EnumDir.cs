@@ -10,17 +10,8 @@ namespace find
 
         public static void Run(string Dirname, Opts opts, ref Stats stats, ref bool CrtlC_pressed, Action<string> OutputHandler, Action<int, string> ErrorHandler)
         {
-            foreach (var entry in Spi.IO.Directory.Entries(Dirname, -1, null, null))
+            foreach (var entry in Spi.IO.Directory.Entries(Dirname, ErrorHandler))
             {
-                if (entry.LastError != 0)
-                {
-                    if (ErrorHandler != null)
-                    {
-                        ErrorHandler(entry.LastError, entry.Dirname);
-                    }
-                    continue;
-                }
-
                 if (CrtlC_pressed)
                 {
                     break;

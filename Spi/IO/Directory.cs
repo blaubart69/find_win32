@@ -21,8 +21,6 @@ namespace Spi.IO
             private StringBuilder Dir;
             private int BaseDirLen;
 
-            public readonly int                         LastError;
-            
             public readonly Spi.Win32.WIN32_FIND_DATA FindData;
 
             public bool isDirectory { get { return IsDirectoryFlagSet(FindData.dwFileAttributes); } }
@@ -45,33 +43,18 @@ namespace Spi.IO
             }
             public DateTime LastWriteTime { get { return Spi.IO.Misc.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime); } }
 
-            public DirEntry(int LastError, StringBuilder Dirname, Spi.Win32.WIN32_FIND_DATA FindData, int BaseDirLen)
+            public DirEntry(StringBuilder Dirname, Spi.Win32.WIN32_FIND_DATA FindData, int BaseDirLen)
             {
-                this.LastError = LastError;
                 this.Dir = Dirname;
                 this.BaseDirLen = BaseDirLen;
                 this.FindData = FindData;
             }
         }
-        public static IEnumerable<DirEntry> Files(string startDir, int maxDepth, string[] ExcludeDirs, string[] ExcludeFiles)
+        public static IEnumerable<DirEntry> Entries(string startDir, Action<int,string> DirErrorHandler)
         {
-            return
-                from entry in Entries(startDir, maxDepth, ExcludeDirs, ExcludeFiles)
-                where (entry.LastError != 0 || !entry.isDirectory)
-                select entry;
+            return Entries(startDir, DirErrorHandler, -1, null);
         }
-        public static IEnumerable<DirEntry> Files(string startDir)
-        {
-            return Files(startDir, -1, null);
-        }
-        public static IEnumerable<DirEntry> Files(string startDir, int maxDepth, string Wildcard)
-        {
-            return
-                from entry in Entries(startDir, maxDepth, null, null)
-                where ( entry.LastError != 0 || !entry.isDirectory )
-                select entry;
-        }
-        public static IEnumerable<DirEntry> Entries(string startDir, int maxDepth, string[] ExcludeDirs, string[] ExcludeFiles)
+        public static IEnumerable<DirEntry> Entries(string startDir, Action<int,string> DirErrorHandler, int maxDepth, Predicate<string> EnterDir)
         {
             // expand directory to "unicode" convention
             StringBuilder           dir             = new StringBuilder( Misc.GetLongFilenameNotation(startDir) );
@@ -94,11 +77,10 @@ namespace Spi.IO
                     dir.Length -= 2;    // remove \* added before
                     if (SearchHandle.IsInvalid)
                     {
-                        yield return new DirEntry(
-                            Marshal.GetLastWin32Error(),
-                            dir,
-                            new Win32.WIN32_FIND_DATA(),
-                            baseDirLength);
+                        if ( DirErrorHandler != null)
+                        {
+                            DirErrorHandler(Marshal.GetLastWin32Error(), dir.ToString());
+                        }
                         StepBack(ref dir, ref dirStack, out SearchHandle, ref depth);
                         continue;
                     }
@@ -119,9 +101,9 @@ namespace Spi.IO
                         //
                         // should we walk into this dir?
                         //
-                        if ( ! Spi.StringTools.Contains_OrdinalIgnoreCase(ExcludeDirs, find_data.cFileName))
+                        if (EnterDir == null || EnterDir(find_data.cFileName))
                         {
-                            yield return new DirEntry(0, dir, find_data, baseDirLength);
+                            yield return new DirEntry(dir, find_data, baseDirLength);
                             //
                             // go down if depth is ok
                             //
@@ -136,14 +118,7 @@ namespace Spi.IO
                     }
                     else
                     {
-                        if (!Spi.StringTools.Contains_OrdinalIgnoreCase(ExcludeDirs, find_data.cFileName))
-                        {
-                            UInt64 size = (((UInt64)find_data.nFileSizeHigh) << 32) | (UInt64)find_data.nFileSizeLow;
-                            yield return new DirEntry(
-                                0, 
-                                dir, 
-                                find_data, baseDirLength);
-                        }
+                        yield return new DirEntry(dir,find_data, baseDirLength);
                     }
                 }
             } while (SearchHandle != null);
