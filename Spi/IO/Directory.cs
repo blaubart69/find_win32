@@ -41,7 +41,13 @@ namespace Spi.IO
                     }
                 } 
             }
-            public DateTime LastWriteTime { get { return Spi.IO.Misc.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime); } }
+            public DateTime LastWriteTime 
+            { 
+                get 
+                { 
+                    return Spi.IO.Misc.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime); 
+                } 
+            }
 
             public DirEntry(StringBuilder Dirname, Spi.Win32.WIN32_FIND_DATA FindData, int BaseDirLen)
             {
@@ -94,34 +100,54 @@ namespace Spi.IO
                         continue;
                     }
                 }
-                if (!".".Equals(find_data.cFileName) && !"..".Equals(find_data.cFileName))
+                if ( IsDirectoryFlagSet(find_data.dwFileAttributes)) // is a dir
                 {
-                    if ( IsDirectoryFlagSet(find_data.dwFileAttributes)) // is a dir
+                    if (IsDotOrDotDotDirectory(find_data.cFileName))
                     {
+                        continue;
+                    }
+                    //
+                    // should we walk into this dir?
+                    //
+                    if (EnterDir == null || EnterDir(find_data.cFileName))
+                    {
+                        yield return new DirEntry(dir, find_data, baseDirLength);
                         //
-                        // should we walk into this dir?
+                        // go down if depth is ok
                         //
-                        if (EnterDir == null || EnterDir(find_data.cFileName))
+                        if (maxDepth == -1 || depth < maxDepth)
                         {
-                            yield return new DirEntry(dir, find_data, baseDirLength);
-                            //
-                            // go down if depth is ok
-                            //
-                            if (maxDepth == -1 || depth < maxDepth)
-                            {
-                                depth++;
-                                dirStack.Push(new Internal_DirInfo() { DirnameLength = find_data.cFileName.Length, handle = SearchHandle });
-                                dir.Append("\\").Append(find_data.cFileName);
-                                findFirstFile = true;
-                            }
+                            depth++;
+                            dirStack.Push(new Internal_DirInfo() { DirnameLength = find_data.cFileName.Length, handle = SearchHandle });
+                            dir.Append("\\").Append(find_data.cFileName);
+                            findFirstFile = true;
                         }
                     }
-                    else
-                    {
-                        yield return new DirEntry(dir,find_data, baseDirLength);
-                    }
+                }
+                else
+                {
+                    yield return new DirEntry(dir,find_data, baseDirLength);
                 }
             } while (SearchHandle != null);
+        }
+
+        private static bool IsDotOrDotDotDirectory(string Filename)
+        {
+            if (Filename[0] == '.')
+            {
+                if (Filename.Length == 1)
+                {
+                    return true;
+                }
+                if (Filename[1] == '.')
+                {
+                    if (Filename.Length == 2)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private static void StepBack(ref StringBuilder dir, ref Stack<Internal_DirInfo> dirStack, out SafeFileHandle SearchHandle, ref int depth)
