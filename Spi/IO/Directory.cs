@@ -58,9 +58,13 @@ namespace Spi.IO
         }
         public static IEnumerable<DirEntry> Entries(string startDir, Action<int,string> DirErrorHandler)
         {
-            return Entries(startDir, DirErrorHandler, -1, null);
+            return Entries(startDir, DirErrorHandler, false);
         }
-        public static IEnumerable<DirEntry> Entries(string startDir, Action<int,string> DirErrorHandler, int maxDepth, Predicate<string> EnterDir)
+        public static IEnumerable<DirEntry> Entries(string startDir, Action<int, string> DirErrorHandler, bool FollowJunctions)
+        {
+            return Entries(startDir, DirErrorHandler, -1, null, FollowJunctions);
+        }
+        public static IEnumerable<DirEntry> Entries(string startDir, Action<int,string> DirErrorHandler, int maxDepth, Predicate<string> EnterDir, bool FollowJunctions)
         {
             // expand directory to "unicode" convention
             StringBuilder           dir             = new StringBuilder( Misc.GetLongFilenameNotation(startDir) );
@@ -106,10 +110,7 @@ namespace Spi.IO
                     {
                         continue;
                     }
-                    //
-                    // should we walk into this dir?
-                    //
-                    if (EnterDir == null || EnterDir(find_data.cFileName))
+                    if ( WalkIntoDir(ref find_data, EnterDir, FollowJunctions) )
                     {
                         yield return new DirEntry(dir, find_data, baseDirLength);
                         //
@@ -130,7 +131,27 @@ namespace Spi.IO
                 }
             } while (SearchHandle != null);
         }
+        private static bool WalkIntoDir(ref Win32.WIN32_FIND_DATA findData, Predicate<string> EnterDir, bool FollowJunctions)
+        {
+            const uint FILE_ATTRIBUTE_REPARSE_POINT = 0x400;
 
+            if ( (findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+            {
+                // 2015-12-01 Spindler  is junction/symlink or whatever
+                if ( FollowJunctions == false )
+                {
+                    return false;
+                }
+            }
+
+            if ( EnterDir == null )
+            {
+                return true;
+            }
+
+            return EnterDir(findData.cFileName);
+
+        }
         private static bool IsDotOrDotDotDirectory(string Filename)
         {
             if (Filename[0] == '.')
@@ -149,7 +170,6 @@ namespace Spi.IO
             }
             return false;
         }
-
         private static void StepBack(ref StringBuilder dir, ref Stack<Internal_DirInfo> dirStack, out SafeFileHandle SearchHandle, ref int depth)
         {
             if (dirStack.Count > 0)

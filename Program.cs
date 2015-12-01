@@ -23,6 +23,7 @@ namespace find
         public bool show_help;
         public bool progress;
         public string FormatString;
+        public bool FollowJunctions = false;
     }
     class Program
     {
@@ -96,8 +97,9 @@ namespace find
                 { "o|out=",     "filename for result of files (UTF8)",   v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
                 //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
-                { "h|help",     "show this message and exit",           v => opts.show_help = v != null },
-                { "f|format=",  "format the output",                    v => opts.FormatString = v }
+                { "h|help",     "show this message and exit",            v => opts.show_help = v != null },
+                { "f|format=",  "format the output",                     v => opts.FormatString = v },
+                { "j|follow",   "follow junctions",                      v => opts.FollowJunctions = (v != null) }
             };
             try
             {
@@ -111,7 +113,6 @@ namespace find
                 {
                     Console.Error.WriteLine("FormatString [{0}]", opts.FormatString);
                 }
-
                 if (opts.Dirs.Count() == 0)
                 {
                     opts.Dirs.Add(Directory.GetCurrentDirectory());
