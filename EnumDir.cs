@@ -8,9 +8,10 @@ namespace find
     {
         static readonly string[] FormatKeyWords = new string[] { "fullname" };
 
-        public static void Run(string Dirname, Opts opts, ref Stats stats, ref bool CrtlC_pressed, Action<string> OutputHandler, Action<int, string> ErrorHandler)
+        public static void Run(string Dirname, Opts opts, ref Stats stats, ref bool CrtlC_pressed, Action<string> OutputHandler, Action<int, string> ErrorHandler, Action<string> ProgressCallback)
         {
-            int StatusTextLen = -1;
+            Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
+
             foreach (var entry in Spi.IO.Directory.Entries(Dirname, ErrorHandler, opts.FollowJunctions))
             {
                 if (CrtlC_pressed)
@@ -21,10 +22,9 @@ namespace find
                 if (entry.isDirectory)
                 {
                     stats.AllDirs += 1;
-                    if (opts.progress)
+                    if (ProgressCallback != null)
                     {
-                        //Console.Error.Write("[{0}]\r", entry.Dirname);
-                        StatusTextLen = Spi.StringTools.WriteStatusLine(Console.Error, entry.Dirname, StatusTextLen);
+                        ProgressCallback(entry.Dirname);
                     }
                     continue;
                 }

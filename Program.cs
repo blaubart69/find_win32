@@ -52,11 +52,13 @@ namespace find
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
                 {
+                    Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
                     foreach (string dir in opts.Dirs)
                     {
                         EnumDir.Run(dir, opts, ref stats, ref CrtlC_pressed, 
                             (filenamefound) => OutWriter.WriteLine(filenamefound), 
-                            (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir));
+                            (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir),
+                            (dirname)       => StatusWriter.WriteWithDots(dirname));
                     }
                     if (ErrWriter.hasDataWritten())
                     {
