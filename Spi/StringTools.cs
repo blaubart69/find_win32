@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,6 +33,22 @@ namespace Spi
                     }
                 }
             });
+        }
+        public static int WriteStatusLine(TextWriter tw, string Text, int PrevTextLen)
+        {
+            int TextLen = Text.Length;
+
+            if (TextLen < PrevTextLen)
+            {
+                string BlanksToDelete = new string(' ', PrevTextLen - TextLen);
+                tw.Write("{0}{1}\r", Text, BlanksToDelete);
+            }
+            else
+            {
+                tw.Write("{0}\r", Text);
+            }
+
+            return TextLen;
         }
     }
 }

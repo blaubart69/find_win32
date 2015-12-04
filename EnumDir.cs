@@ -10,6 +10,7 @@ namespace find
 
         public static void Run(string Dirname, Opts opts, ref Stats stats, ref bool CrtlC_pressed, Action<string> OutputHandler, Action<int, string> ErrorHandler)
         {
+            int StatusTextLen = -1;
             foreach (var entry in Spi.IO.Directory.Entries(Dirname, ErrorHandler, opts.FollowJunctions))
             {
                 if (CrtlC_pressed)
@@ -22,7 +23,8 @@ namespace find
                     stats.AllDirs += 1;
                     if (opts.progress)
                     {
-                        Console.Error.Write("[{0}]\r", entry.Dirname);
+                        //Console.Error.Write("[{0}]\r", entry.Dirname);
+                        StatusTextLen = Spi.StringTools.WriteStatusLine(Console.Error, entry.Dirname, StatusTextLen);
                     }
                     continue;
                 }
@@ -77,6 +79,5 @@ namespace find
 
             return sb.ToString();
         }
-
     }
 }
