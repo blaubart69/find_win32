@@ -17,13 +17,14 @@ namespace find
     }
     class Opts
     {
-        public IList<string> Dirs;
+        public IEnumerable<string> Dirs;
         public string Pattern;
         public string OutFilename;
         public bool show_help;
         public bool progress;
         public string FormatString;
         public bool FollowJunctions = false;
+        public string FilenameWithDirs;
     }
     class Program
     {
@@ -55,10 +56,15 @@ namespace find
                     Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
                     foreach (string dir in opts.Dirs)
                     {
-                        EnumDir.Run(dir, opts, ref stats, ref CrtlC_pressed, 
-                            (filenamefound) => OutWriter.WriteLine(filenamefound), 
+                        Console.Error.WriteLine("scanning [{0}]", dir);
+                        EnumDir.Run(dir, opts, ref stats, ref CrtlC_pressed,
+                            (filenamefound) => OutWriter.WriteLine(filenamefound),
                             (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir),
-                            (dirname)       => StatusWriter.WriteWithDots(dirname));
+                            (dirname)       => { if (opts.progress) { StatusWriter.WriteWithDots(dirname); } });
+                    }
+                    if ( opts.progress )
+                    {
+                        StatusWriter.WriteWithDots("");
                     }
                     if (ErrWriter.hasDataWritten())
                     {
@@ -101,7 +107,8 @@ namespace find
                 //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
                 { "h|help",     "show this message and exit",            v => opts.show_help = v != null },
                 { "f|format=",  "format the output",                     v => opts.FormatString = v },
-                { "j|follow",   "follow junctions",                      v => opts.FollowJunctions = (v != null) }
+                { "j|follow",   "follow junctions",                      v => opts.FollowJunctions = (v != null) },
+                { "d|dir=",     "directory names line by line in a file",v => opts.FilenameWithDirs = v }
             };
             try
             {
@@ -115,9 +122,19 @@ namespace find
                 {
                     Console.Error.WriteLine("FormatString [{0}]", opts.FormatString);
                 }
-                if (opts.Dirs.Count() == 0)
+
+                if (!String.IsNullOrEmpty(opts.FilenameWithDirs))
                 {
-                    opts.Dirs.Add(Directory.GetCurrentDirectory());
+                    if ( !File.Exists(opts.FilenameWithDirs) )
+                    {
+                        Console.Error.WriteLine("E: The file you specified with the option -d does not exist. [{0}]", opts.FilenameWithDirs);
+                        return null;
+                    }
+                    opts.Dirs = StringTools.TextFileByLine(opts.FilenameWithDirs);
+                }
+                else if (opts.Dirs.Count() == 0)
+                {
+                    opts.Dirs = new string[] { Directory.GetCurrentDirectory() };
                 }
             }
             catch (Mono.Options.OptionException oex)

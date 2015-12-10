@@ -34,5 +34,16 @@ namespace Spi
                 }
             });
         }
+        public static IEnumerable<string> TextFileByLine(string Filename)
+        {
+            using ( TextReader tr = new StreamReader(Filename) )
+            {
+                string line;
+                while ((line = tr.ReadLine()) != null)
+                {
+                    yield return line;
+                }
+            }
+        }
     }
 }
