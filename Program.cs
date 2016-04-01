@@ -106,7 +106,7 @@ namespace find
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
                 //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
-                { "f|format=",  "format the output. keywords: %fullname%",                     v => opts.FormatString = v },
+                { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
                 { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v }
             };
