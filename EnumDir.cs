@@ -47,8 +47,18 @@ namespace find
             string output;
             if (String.IsNullOrEmpty(FormatString))
             {
-                output = String.Format("{0} {1,12} {2}",
-                    entry.LastWriteTime.ToString("yyyy.MM.dd HH:mm:ss"),
+                String LastWriteTime;
+                try
+                {
+                    LastWriteTime = entry.LastWriteTime.ToString("yyyy.MM.dd HH:mm:ss");
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    LastWriteTime =                              "[out of .NET range]";
+                }
+
+                output = String.Format("{0}\t{1,12}\t{2}",
+                    LastWriteTime,
                     entry.Filesize,
                     entry.Fullname);
             }

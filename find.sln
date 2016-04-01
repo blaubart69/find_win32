@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "find", "find.csproj", "{DFFB574F-9F0D-49D4-BF9E-26F6BDDA9641}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "findTest", "..\findTest\findTest.csproj", "{4E3254E2-EDF3-4A89-BE37-F1BE78E574F0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{DFFB574F-9F0D-49D4-BF9E-26F6BDDA9641}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DFFB574F-9F0D-49D4-BF9E-26F6BDDA9641}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DFFB574F-9F0D-49D4-BF9E-26F6BDDA9641}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E3254E2-EDF3-4A89-BE37-F1BE78E574F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E3254E2-EDF3-4A89-BE37-F1BE78E574F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E3254E2-EDF3-4A89-BE37-F1BE78E574F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E3254E2-EDF3-4A89-BE37-F1BE78E574F0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
