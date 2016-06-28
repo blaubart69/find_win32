@@ -32,7 +32,7 @@ namespace find
                 stats.AllBytes += entry.Filesize;
                 stats.AllFiles += 1;
 
-                bool PrintEntry = (opts.Pattern == null) ? true : Regex.IsMatch(entry.Filename, opts.Pattern);
+                bool PrintEntry = (opts.Pattern == null) ? true : Regex.IsMatch(entry.Name, opts.Pattern);
                 if (PrintEntry)
                 {
                     stats.MatchedBytes += entry.Filesize;
@@ -42,7 +42,7 @@ namespace find
             }
         }
 
-        private static void HandleMatchedFile(Spi.IO.Directory.DirEntry entry, string FormatString, Action<string> OutputHandler)
+        private static void HandleMatchedFile(Spi.IO.DirEntry entry, string FormatString, Action<string> OutputHandler)
         {
             string output;
             if (String.IsNullOrEmpty(FormatString))
@@ -71,7 +71,7 @@ namespace find
                 OutputHandler(output);
             }
         }
-        static string FormatOutput(string Format, Spi.IO.Directory.DirEntry entry)
+        static string FormatOutput(string Format, Spi.IO.DirEntry entry)
         {
             StringBuilder sb = new StringBuilder(Format);
             foreach (string magic in FormatKeyWords)

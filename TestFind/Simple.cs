@@ -18,9 +18,8 @@ namespace TestFind
             var entries = Spi.IO.Directory.Entries(newdir, (rc,msg) => { Assert.Fail("error enumerating rc [{0}] message [{1}]", rc,msg);  });
             var iter = entries.GetEnumerator();
             var item = iter.MoveNext();
-            Assert.AreEqual("find.me", iter.Current.Filename);
+            Assert.AreEqual("find.me", iter.Current.Name);
             Assert.IsFalse(iter.MoveNext());
-            
         }
     }
 }

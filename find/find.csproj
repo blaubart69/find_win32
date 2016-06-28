@@ -43,12 +43,15 @@
     <Compile Include="Options.cs" />
     <Compile Include="Spi\ConsoleAndFileWriter.cs" />
     <Compile Include="Spi\IO\Directory.cs" />
+    <Compile Include="Spi\IO\DirEntry.cs" />
+    <Compile Include="Spi\IO\Long.cs" />
     <Compile Include="Spi\IO\Misc.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Spi\Native\SafeFindHandle.cs" />
+    <Compile Include="Spi\Native\Win32.cs" />
     <Compile Include="Spi\StatusLineWriter.cs" />
     <Compile Include="Spi\StringTools.cs" />
-    <Compile Include="Spi\Win32.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
