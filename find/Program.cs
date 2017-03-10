@@ -25,6 +25,7 @@ namespace find
         public string FormatString;
         public bool FollowJunctions = false;
         public string FilenameWithDirs;
+        public int Depth = -1;
     }
     class Program
     {
@@ -104,7 +105,7 @@ namespace find
                 { "r|rname=",   "regex applied to the filename",            v => opts.Pattern = v },
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
-                //{ "v", "increase debug message verbosity",                      v => { if (v != null) ++verbosity; } },
+                { "t|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
                 { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },

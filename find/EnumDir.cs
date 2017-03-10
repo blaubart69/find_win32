@@ -12,7 +12,12 @@ namespace find
         {
             Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
 
-            foreach (var entry in Spi.IO.Directory.Entries(Dirname, ErrorHandler, opts.FollowJunctions))
+            foreach (var entry in Spi.IO.Directory.Entries(
+                startDir: Dirname, 
+                DirErrorHandler: ErrorHandler,
+                FollowJunctions: opts.FollowJunctions,
+                EnterDir: null,
+                maxDepth: opts.Depth))
             {
                 if (CrtlC_pressed)
                 {
