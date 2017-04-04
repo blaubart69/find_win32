@@ -38,6 +38,11 @@ namespace Spi.IO
 
             bool findFirstFile = true;
 
+            if (dir[dir.Length-1] == '\\')
+            {
+                dir.Length -= 1;
+            }
+
             do
             {
                 if (findFirstFile)
