@@ -123,13 +123,27 @@ namespace Spi.Native
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CreateDirectoryW(string lpPathName,IntPtr lpSecurityAttributes);
 
+        public static bool SetFileTime(IntPtr hFile, ref System.Runtime.InteropServices.ComTypes.FILETIME lpCreationTime, ref System.Runtime.InteropServices.ComTypes.FILETIME lpLastAccessTime, ref System.Runtime.InteropServices.ComTypes.FILETIME lpLastWriteTime)
+        {
+            long c = Spi.IO.Misc.FiletimeToLong(lpCreationTime);
+            long a = Spi.IO.Misc.FiletimeToLong(lpLastAccessTime);
+            long w = Spi.IO.Misc.FiletimeToLong(lpLastWriteTime);
+
+            return
+                SetFileTime(
+                    hFile: hFile,
+                    lpCreationTime:     ref c,
+                    lpLastAccessTime:   ref a,
+                    lpLastWriteTime:    ref w);
+        }
+
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetFileTime(IntPtr hFile, ref System.Runtime.InteropServices.ComTypes.FILETIME lpCreationTime, ref System.Runtime.InteropServices.ComTypes.FILETIME lpLastAccessTime, ref System.Runtime.InteropServices.ComTypes.FILETIME lpLastWriteTime);
+        public static extern bool SetFileTime(IntPtr hFile, ref long lpCreationTime, ref long lpLastAccessTime, ref long lpLastWriteTime);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-
         public static extern bool FileTimeToSystemTime(ref System.Runtime.InteropServices.ComTypes.FILETIME ft, out SYSTEMTIME st);
+
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool FileTimeToLocalFileTime(ref System.Runtime.InteropServices.ComTypes.FILETIME ftin, ref System.Runtime.InteropServices.ComTypes.FILETIME ftout);
 

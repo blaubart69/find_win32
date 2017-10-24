@@ -57,5 +57,9 @@ namespace Spi.IO
 
             return result; 
         }
+        public static long FiletimeToLong(FILETIME ft)
+        {
+            return TwoIntToLong(ft.dwHighDateTime, ft.dwLowDateTime);
+        }
     }
 }
