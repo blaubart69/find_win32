@@ -13,8 +13,10 @@ namespace find
         {
             Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
 
+            string StartDirectoryFullname = System.IO.Path.GetFullPath(Dirname);
+
             foreach (var entry in Spi.IO.Directory.Entries(
-                startDir: Dirname, 
+                startDir: StartDirectoryFullname, 
                 DirErrorHandler: ErrorHandler,
                 FollowJunctions: opts.FollowJunctions,
                 EnterDir: null,
@@ -30,7 +32,7 @@ namespace find
                     stats.AllDirs += 1;
                     if (ProgressCallback != null)
                     {
-                        ProgressCallback(entry.Dirname);
+                        ProgressCallback(StartDirectoryFullname);
                     }
                     continue;
                 }
