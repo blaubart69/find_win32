@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace Spi.IO
 {
@@ -25,14 +24,23 @@ namespace Spi.IO
                 return Dirname + System.IO.Path.DirectorySeparatorChar + FindData.cFileName;
             }
         }
-        public DateTime LastWriteTime
+        public FILETIME LastWriteTime
         {
             get
             {
-                return Spi.IO.Long.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime);
+                //return Spi.IO.Long.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime);
+                return FindData.ftLastWriteTime;
             }
         }
-
+        public long LastWriteTimeUtcLong
+        {
+            get
+            {
+                return Misc.TwoIntToLong(
+                    FindData.ftLastWriteTime.dwHighDateTime, 
+                    FindData.ftLastWriteTime.dwLowDateTime);
+            }
+        }
         public DirEntry(StringBuilder Dirname, Spi.Native.Win32.WIN32_FIND_DATA FindData, int BaseDirLen)
         {
             this.Dir = Dirname;

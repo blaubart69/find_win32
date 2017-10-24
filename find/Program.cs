@@ -58,10 +58,10 @@ namespace find
                     foreach (string dir in opts.Dirs)
                     {
                         Console.Error.WriteLine("scanning [{0}]", dir);
-                        EnumDir.Run(dir, opts, ref stats, ref CrtlC_pressed,
-                            (filenamefound) => OutWriter.WriteLine(filenamefound),
-                            (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir),
-                            (dirname)       => { if (opts.progress) { StatusWriter.WriteWithDots(dirname); } });
+                        EnumDir.Run(Dirname: dir, opts: opts, stats: ref stats, CrtlC_pressed: ref CrtlC_pressed,
+                            OutputHandler:    (filenamefound) => OutWriter.WriteLine(filenamefound),
+                            ErrorHandler:     (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir),
+                            ProgressCallback: (dirname)       => { if (opts.progress) { StatusWriter.WriteWithDots(dirname); } });
                     }
                     if ( opts.progress )
                     {

@@ -1,8 +1,6 @@
 ﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace Spi.IO
 {
@@ -14,58 +12,50 @@ namespace Spi.IO
             Spi.Native.Win32.StrFormatByteSize((long)Filesize, sb, 50);
             return sb.ToString();
         }
-        /// <summary>
-        /// delete all the dirs and files in the given directory
-        /// except the dirs and files specified in the two arrays
-        /// </summary>
-        /// <param name="dir">Directory to clean</param>
-        /// <param name="ExcludeDirs">List of directories which should not be deleted</param>
-        /// <param name="ExcludeFiles">List of files which should not be deleted</param>
-        public static void EmptyDirectory(string dir, ICollection<string> ExcludeDirs, ICollection<string> ExcludeFiles, Action<string> DebugCallBack)
+        public static string FiletimeToString(FILETIME filetime)
         {
-            //
-            // delete all directories
-            //
-            foreach (string Dir2Del in System.IO.Directory.GetDirectories(dir))
+            Native.Win32.SYSTEMTIME universalSystemtime;
+            if ( ! Native.Win32.FileTimeToSystemTime(ref filetime, out universalSystemtime) )
             {
-                if (DebugCallBack != null) DebugCallBack(String.Format("dir enumerated [{0}]", Dir2Del));
-                string DirOnlyName = Path.GetFileName(Dir2Del);
+                throw new System.ComponentModel.Win32Exception();
+            }
+            /**
+             *  universalTime:
+             *  year:   30828
+             *  month:  9
+             *  day:    14
+             *  hour:   2
+             *  minute: 48
+             *  second: 5
+             *  milli:  477
+            */
 
-                if (!Spi.StringTools.Contains_OrdinalIgnoreCase(ExcludeDirs, DirOnlyName))
-                {
-                    if (DebugCallBack != null) DebugCallBack(String.Format("deleting dir [{0}]", DirOnlyName));
-                    System.IO.Directory.Delete(Dir2Del, true); // true = delete recurse    
-                }
-            }
-            //
-            // delete all files
-            //
-            foreach (string FileToDel in System.IO.Directory.GetFiles(dir))
+            Native.Win32.SYSTEMTIME localSystemtime;
+            if ( ! Native.Win32.SystemTimeToTzSpecificLocalTime(IntPtr.Zero, ref universalSystemtime, out localSystemtime) )
             {
-                if (DebugCallBack != null) DebugCallBack(String.Format("file enumerated [{0}]", FileToDel));
-                if (!Spi.StringTools.Contains_OrdinalIgnoreCase(ExcludeFiles, Path.GetFileName(FileToDel)))
-                {
-                    File.SetAttributes(FileToDel, FileAttributes.Normal);
-                    if (DebugCallBack != null) DebugCallBack(String.Format("deleting file [{0}]", FileToDel));
-                    File.Delete(FileToDel);
-                }
+                throw new System.ComponentModel.Win32Exception();
             }
+
+            return FormatSystemtime(localSystemtime);
         }
-		public static bool CalcMD5ofFile(string Filename, out string MD5Hash, out int LastError)
+        public static string FormatSystemtime(Native.Win32.SYSTEMTIME sysTime)
         {
-            MD5Hash = null;
-            FileStream fs;
-            if ( (LastError = Spi.IO.Long.GetFilestream(Filename, FileAccess.Read, FileShare.Read, FileMode.Open, FileAttributes.Normal, out fs)) != 0 )
-            {
-                return false;
-            }
+            return $"{sysTime.Year}.{sysTime.Month:00}.{sysTime.Day:00} {sysTime.Hour:00}:{sysTime.Minute:00}:{sysTime.Second:00}";
+        }
+        public static DateTime ConvertFromFiletime(int HighTime, int LowTime)
+        {
+            long val = TwoIntToLong(HighTime, LowTime);
+            return DateTime.FromFileTime(val);
+        }
+        public static long TwoIntToLong(int high, int low)
+        {
+            ulong h = (ulong)high << 32;
+            ulong l = (uint)low;
 
-            using ( fs )
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                MD5Hash = BitConverter.ToString( md5.ComputeHash(fs) ).Replace("-","");
-            }
-            return true;
+            ulong    u_result = h | l;
+            long result = (long)u_result;
+
+            return result; 
         }
     }
 }

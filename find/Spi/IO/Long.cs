@@ -39,7 +39,7 @@ namespace Spi.IO
             */
             return (rc & 0x10) != 0;
         }
-        public static int CreateFile(string Longfilename, FileAccess fAccess, FileShare fShare, FileMode fMode, FileAttributes fAttr, out SafeFileHandle handle)
+        public static int CreateFile(string Longfilename, Native.Win32.EFileAccess fAccess, FileShare fShare, FileMode fMode, FileAttributes fAttr, out SafeFileHandle handle)
         {
             handle = Spi.Native.Win32.CreateFileW(Longfilename, fAccess, fShare, IntPtr.Zero, fMode, fAttr, IntPtr.Zero);
 
@@ -53,20 +53,6 @@ namespace Spi.IO
                 return 0;
             }
         }
-        public static int GetFilestream(string Longfilename, FileAccess fAccess, FileShare fShare, FileMode fMode, FileAttributes fAttr, out FileStream fs)
-        {
-            SafeFileHandle handle;
-            int rc = CreateFile(Longfilename, fAccess, fShare, fMode, fAttr, out handle);
-            if (rc == 0)
-            {
-                fs = new FileStream(handle, fAccess);
-            }
-            else
-            {
-                fs = null;
-            }
-            return rc;
-        }
         public static bool CreatePath(string PathToCreate)
         {
             if (IsDirectory(PathToCreate))
@@ -79,7 +65,7 @@ namespace Spi.IO
             }
 
             bool rc = false;
-            if (Spi.Native.Win32.GetLastWin32Error() == Spi.Native.Win32.ERROR_PATH_NOT_FOUND)
+            if (System.Runtime.InteropServices.Marshal.GetLastWin32Error() == Spi.Native.Win32.ERROR_PATH_NOT_FOUND)
             {
                 // not found. try to create the parent dir.
                 int LastPos = PathToCreate.LastIndexOf(System.IO.Path.DirectorySeparatorChar);
@@ -93,16 +79,6 @@ namespace Spi.IO
                 }
             }
             return rc;
-        }
-        public static DateTime ConvertFromFiletime(int HighTime, int LowTime)
-        {
-            unchecked
-            {
-                //ulong val = ((ulong)FindData.ftLastWriteTime.dwHighDateTime << 32) | (ulong)FindData.ftLastWriteTime.dwLowDateTime;
-                ulong val = ((ulong)HighTime) << 32;
-                val = val | (uint)LowTime;
-                return DateTime.FromFileTime((long)val);
-            }
         }
     }
 }
