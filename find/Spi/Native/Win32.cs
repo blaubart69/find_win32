@@ -123,7 +123,7 @@ namespace Spi.Native
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CreateDirectoryW(string lpPathName,IntPtr lpSecurityAttributes);
 
-        public static bool SetFileTime(IntPtr hFile, ref System.Runtime.InteropServices.ComTypes.FILETIME lpCreationTime, ref System.Runtime.InteropServices.ComTypes.FILETIME lpLastAccessTime, ref System.Runtime.InteropServices.ComTypes.FILETIME lpLastWriteTime)
+        public static bool SetFileTime(IntPtr hFile, System.Runtime.InteropServices.ComTypes.FILETIME lpCreationTime, System.Runtime.InteropServices.ComTypes.FILETIME lpLastAccessTime, System.Runtime.InteropServices.ComTypes.FILETIME lpLastWriteTime)
         {
             long c = Spi.IO.Misc.FiletimeToLong(lpCreationTime);
             long a = Spi.IO.Misc.FiletimeToLong(lpLastAccessTime);

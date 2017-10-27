@@ -79,7 +79,7 @@ namespace TestFind
                     ref st,
                     out lastwrite);
 
-                Assert.IsTrue(Spi.Native.Win32.SetFileTime(hFile.DangerousGetHandle(), ref create, ref access, ref lastwrite),
+                Assert.IsTrue(Spi.Native.Win32.SetFileTime(hFile.DangerousGetHandle(), create, access, lastwrite),
                     "setFileTime failed with rc={0} Msg={1}", System.Runtime.InteropServices.Marshal.GetLastWin32Error(),
                     new System.ComponentModel.Win32Exception().Message);
 
@@ -120,7 +120,7 @@ namespace TestFind
                 FILETIME access = new FILETIME();
                 FILETIME lastwrite = new FILETIME() { dwHighDateTime = 0x7FFFFFFF, dwLowDateTime = -1 };
 
-                bool ok = Spi.Native.Win32.SetFileTime(hFile.DangerousGetHandle(), ref create, ref access, ref lastwrite);
+                bool ok = Spi.Native.Win32.SetFileTime(hFile.DangerousGetHandle(), create, access, lastwrite);
                 if ( !ok )
                 { 
                     int SetFiletimeRC = System.Runtime.InteropServices.Marshal.GetLastWin32Error();

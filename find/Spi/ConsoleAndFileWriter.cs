@@ -29,9 +29,9 @@ namespace Spi
             if (FileWriter == null)
             {
                 FileWriter = new StreamWriter(
-                    Filename,
-                    false,      // append?
-                    System.Text.Encoding.UTF8);
+                    path:       Filename,
+                    append:     false,      
+                    encoding:   System.Text.Encoding.UTF8);
             }
 
             _internal_WriteLine(FileWriter, Format, args);

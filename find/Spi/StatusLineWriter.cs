@@ -14,25 +14,26 @@ namespace Spi.IO
         private readonly TextWriter tw = Console.Error;
         private readonly TimeSpan TimeSpanForWriting = new TimeSpan(hours: 0, minutes: 0, seconds: 1);
 
-        public void WriteSimple(string Text)
+        private void _internal_WriteSimple(string Text)
         {
-            if (!HasTimespanPassed(this.TimeSpanForWriting))
+            if (Text.Length < PrevTextLen)
             {
-                return;
-            }
-
-            int TextLen = Text.Length;
-
-            if (TextLen < PrevTextLen)
-            {
-                string BlanksToDelete = new string(' ', PrevTextLen - TextLen);
+                string BlanksToDelete = new string(' ', PrevTextLen - Text.Length);
                 tw.Write("{0}{1}\r", Text, BlanksToDelete);
             }
             else
             {
                 tw.Write("{0}\r", Text);
             }
-            PrevTextLen = TextLen;
+            PrevTextLen = Text.Length;
+        }
+        public void WriteSimple(string Text)
+        {
+            if (!HasTimespanPassed(this.TimeSpanForWriting))
+            {
+                return;
+            }
+            _internal_WriteSimple(Text);
         }
         public void WriteWithDots(string Text)
         {
@@ -41,16 +42,14 @@ namespace Spi.IO
                 return;
             }
 
-            int TextLen = Text.Length;
+            const string Dots = "...";
 
-            string Dots = "...";
-
-            if (TextLen > Console.WindowWidth)
+            if (Text.Length > Console.WindowWidth)
             {
                 int LenLeftPart = (Console.WindowWidth - Dots.Length) / 2;
                 int LenRightPart = Console.WindowWidth - Dots.Length - LenLeftPart;
 
-                Console.Error.Write("{0}{1}{2}\r",
+                tw.Write("{0}{1}{2}\r",
                     Text.Substring(0, LenLeftPart),
                     Dots,
                     Text.Substring(Text.Length - LenRightPart, LenRightPart)
@@ -58,18 +57,10 @@ namespace Spi.IO
             }
             else
             {
-                if (TextLen < PrevTextLen)
-                {
-                    string BlanksToDelete = new string(' ', PrevTextLen - TextLen);
-                    Console.Error.Write("{0}{1}\r", Text, BlanksToDelete);
-                }
-                else
-                {
-                    Console.Error.Write("{0}\r", Text);
-                }
+                _internal_WriteSimple(Text);
             }
 
-            PrevTextLen = TextLen;
+            PrevTextLen = Text.Length;
         }
         private bool HasTimespanPassed(TimeSpan tsMustHavePassed)
         {

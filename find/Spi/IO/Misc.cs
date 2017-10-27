@@ -42,11 +42,6 @@ namespace Spi.IO
         {
             return $"{sysTime.Year}.{sysTime.Month:00}.{sysTime.Day:00} {sysTime.Hour:00}:{sysTime.Minute:00}:{sysTime.Second:00}";
         }
-        public static DateTime ConvertFromFiletime(int HighTime, int LowTime)
-        {
-            long val = TwoIntToLong(HighTime, LowTime);
-            return DateTime.FromFileTime(val);
-        }
         public static long TwoIntToLong(int high, int low)
         {
             ulong h = (ulong)high << 32;
