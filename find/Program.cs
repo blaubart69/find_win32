@@ -97,6 +97,8 @@ namespace find
             Console.WriteLine();
             Console.WriteLine("Options:");
             p.WriteOptionDescriptions(Console.Out);
+            Console.WriteLine("\nSamples:"
+                + "\n  find and extension via regex match ... find.exe -r \"\\.txt$\"" );
         }
         static Opts GetOpts(string[] args)
         {
