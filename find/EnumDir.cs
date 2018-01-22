@@ -30,22 +30,20 @@ namespace find
                 if (entry.isDirectory)
                 {
                     stats.AllDirs += 1;
-                    if (ProgressCallback != null)
-                    {
-                        ProgressCallback(StartDirectoryFullname);
-                    }
-                    continue;
+                    ProgressCallback?.Invoke(StartDirectoryFullname);
                 }
-
-                stats.AllBytes += entry.Filesize;
-                stats.AllFiles += 1;
-
-                bool PrintEntry = (opts.Pattern == null) ? true : Regex.IsMatch(entry.Name, opts.Pattern);
-                if (PrintEntry)
+                else
                 {
-                    stats.MatchedBytes += entry.Filesize;
-                    stats.MatchedFiles += 1;
-                    HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
+                    stats.AllBytes += entry.Filesize;
+                    stats.AllFiles += 1;
+
+                    bool PrintEntry = (opts.Pattern == null) ? true : Regex.IsMatch(entry.Name, opts.Pattern);
+                    if (PrintEntry)
+                    {
+                        stats.MatchedBytes += entry.Filesize;
+                        stats.MatchedFiles += 1;
+                        HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
+                    }
                 }
             }
         }
