@@ -57,6 +57,10 @@ namespace find
                     Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
                     foreach (string dir in opts.Dirs)
                     {
+                        if (CrtlC_pressed)
+                        {
+                            break;
+                        }
                         Console.Error.WriteLine("scanning [{0}]", dir);
                         EnumDir.Run(Dirname: dir, opts: opts, stats: ref stats, CrtlC_pressed: ref CrtlC_pressed,
                             OutputHandler:    (filenamefound) => OutWriter.WriteLine(filenamefound),
