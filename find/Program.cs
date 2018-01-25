@@ -29,6 +29,7 @@ namespace find
         public string FilenameWithDirs;
         public int Depth = -1;
         public bool RunParallel = false;
+        public bool Sum = false;
     }
     class Program
     {
@@ -66,10 +67,12 @@ namespace find
                     bool IsFilenameMatching(string filename) =>
                             (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
 
+                    opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
+
                     Stats stats;
                     if (opts.RunParallel)
                     {
-                        stats = RunParallel.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, OutputHandler, CrtlCEvent);
+                        stats = RunParallel.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, opts.Sum, IsFilenameMatching, MatchedFileHandler, ErrorHandler, OutputHandler, CrtlCEvent);
                     }
                     else
                     {
@@ -97,10 +100,11 @@ namespace find
         static void WriteStats(Stats stats)
         {
             Console.Error.WriteLine(
-                  "dirs           {0,-10}\n" +
-                  "files          {1,-10} ({2})\n"
-                + "files matched  {3,-10} ({4})",
-                    stats.AllDirs, stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
+                  "dirs           {0,10}\n" +
+                  "files          {1,10} ({2})\n"
+                + "files matched  {3,10} ({4})",
+                    stats.AllDirs, 
+                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
                     stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));
         }
         static void ShowHelp(Mono.Options.OptionSet p)
@@ -125,7 +129,8 @@ namespace find
                 { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
                 { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
-                { "l|parallel", "run enumerations in threads",              v => opts.RunParallel = ( v != null) }
+                { "l|parallel", "run enumerations in threads",              v => opts.RunParallel = ( v != null) },
+                { "s|sum",      "just count",                               v => opts.Sum = ( v != null) }
             };
             try
             {

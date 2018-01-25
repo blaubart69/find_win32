@@ -75,24 +75,13 @@ namespace find
         {
             entry = null;
 
-            lock (_SHR_queueEntriesFound )
+            WaitHandle.WaitAny(new WaitHandle[] { _isFinishedEvent, _entryEnqueuedEvent }, millisecondsTimeout);
             {
-                if ( _SHR_queueEntriesFound.Count > 0 )
+                lock (_SHR_queueEntriesFound)
                 {
-                    entry = _SHR_queueEntriesFound.Dequeue();
-                }
-            }
-
-            if (entry == null)
-            {
-                if (_entryEnqueuedEvent.WaitOne(millisecondsTimeout))
-                {
-                    lock (_SHR_queueEntriesFound)
+                    if (_SHR_queueEntriesFound.Count > 0)
                     {
-                        if (_SHR_queueEntriesFound.Count > 0)
-                        {
-                            entry = _SHR_queueEntriesFound.Dequeue();
-                        }
+                        entry = _SHR_queueEntriesFound.Dequeue();
                     }
                 }
             }

@@ -8,7 +8,7 @@ namespace find
 {
     class RunParallel
     {
-        public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
+        public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, bool Sum, Predicate<string> matchFilename, Action<DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
         {
             EnumDirsParallel parallelEnumerator 
                 = EnumDirsParallel.Start(dirs, maxDepth, followJunctions, matchFilename, ErrorHandler);
