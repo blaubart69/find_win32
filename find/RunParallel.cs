@@ -10,15 +10,12 @@ namespace find
     {
         public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
         {
-            Parallel.EnumDirsParallel parallelEnumerator 
-                = new Parallel.EnumDirsParallel(maxDepth, followJunctions, matchFilename, ErrorHandler);
+            EnumDirsParallel parallelEnumerator 
+                = EnumDirsParallel.Start(dirs, maxDepth, followJunctions, matchFilename, ErrorHandler);
 
-            parallelEnumerator.Start(dirs);
-
-            bool hasFinished;
-            do
+            while (true)
             {
-                parallelEnumerator.TryDequeue(out DirEntry? entry, out hasFinished, millisecondsTimeout: 1000);
+                parallelEnumerator.TryDequeue(out DirEntry? entry, out bool hasFinished, millisecondsTimeout: 1000);
                 if (entry.HasValue)
                 {
                     MatchedFileHandler?.Invoke(entry.Value);
@@ -26,10 +23,13 @@ namespace find
                 else if (!hasFinished)
                 {
                     parallelEnumerator.GetProgress(out ulong running, out ulong FoundEntriesQueueCount, out Stats tmpStats);
-                    ProgressHandler($"Enumerations running: {running} | found queue count: {FoundEntriesQueueCount} | Files seen: {tmpStats.AllFiles} | Files matched: {tmpStats.MatchedFiles}");
+                    ProgressHandler?.Invoke($"Enumerations running: {running} | found queue count: {FoundEntriesQueueCount} | Files seen: {tmpStats.AllFiles} | Files matched: {tmpStats.MatchedFiles}");
+                }
+                else
+                {
+                    break;
                 }
             }
-            while (!hasFinished);
 
             return parallelEnumerator.EnumStats;
         }

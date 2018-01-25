@@ -6,7 +6,7 @@ namespace Spi.IO
 {
     public struct DirEntry
     {
-        private readonly string DirName;
+        private readonly string _BaseDirName;
         //private readonly int BaseDirLen;
         private readonly Spi.Native.Win32.WIN32_FIND_DATA FindData;
 
@@ -14,7 +14,6 @@ namespace Spi.IO
         public bool IsFile { get { return !IsDirectory; } }
         public string Name { get { return FindData.cFileName; } }
         public UInt64 Filesize { get { return (((UInt64)FindData.nFileSizeHigh) << 32) | (UInt64)FindData.nFileSizeLow; } }
-        public string Dirname { get { return Dirname; } }
         /*
         public string DirAndFilenameFromStartDir { get { return GetFilenameSinceBaseDir(Dirname, BaseDirLen, FindData.cFileName); } }
         */
@@ -22,7 +21,7 @@ namespace Spi.IO
         {
             get
             {
-                return Dirname + System.IO.Path.DirectorySeparatorChar + FindData.cFileName;
+                return _BaseDirName + System.IO.Path.DirectorySeparatorChar + FindData.cFileName;
             }
         }
         public FILETIME LastWriteTime
@@ -44,7 +43,7 @@ namespace Spi.IO
         }
         public DirEntry(string BaseDirName, Spi.Native.Win32.WIN32_FIND_DATA FindData)
         {
-            this.DirName = BaseDirName;
+            this._BaseDirName = BaseDirName;
             //this.BaseDirLen = BaseDirLen;
             this.FindData = FindData;
         }

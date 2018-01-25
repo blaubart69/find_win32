@@ -6,7 +6,7 @@ namespace find
 {
     class EnumDir
     {
-        public static void Run(string Dirname, Opts opts, ref Stats stats, ManualResetEvent CrtlCEvent, Predicate<string> matchFilename, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler)
+        public static void Run(string Dirname, Opts opts, ref Stats stats, ManualResetEvent CrtlCEvent, Predicate<string> IsMatchingFile, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler)
         {
             Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
 
@@ -34,7 +34,7 @@ namespace find
                     stats.AllBytes += (long)entry.Filesize;
                     stats.AllFiles += 1;
 
-                    if ( matchFilename?.Invoke(entry.Name) == true )
+                    if ( IsMatchingFile?.Invoke(entry.Name) == true )
                     { 
                         stats.MatchedBytes += (long)entry.Filesize;
                         stats.MatchedFiles += 1;

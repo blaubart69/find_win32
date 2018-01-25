@@ -23,7 +23,7 @@ namespace find
                     opts:               opts, 
                     stats:              ref stats,
                     CrtlCEvent:         CrtlCEvent,
-                    matchFilename:      matchFilename,
+                    IsMatchingFile:      matchFilename,
                     MatchedFileHandler: MatchedFileHandler,
                     ErrorHandler:       ErrorHandler,
                     ProgressHandler:    (dirname) => { StatusWriter?.WriteWithDots(dirname); } );

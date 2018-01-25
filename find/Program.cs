@@ -28,6 +28,7 @@ namespace find
         public bool FollowJunctions = false;
         public string FilenameWithDirs;
         public int Depth = -1;
+        public bool RunParallel = false;
     }
     class Program
     {
@@ -57,17 +58,23 @@ namespace find
                 {
                     Spi.IO.StatusLineWriter StatusWriter = opts.progress ? new Spi.IO.StatusLineWriter() : null;
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir);
+                    void OutputHandler(string output) => OutWriter.WriteLine(output);
                     void MatchedFileHandler(Spi.IO.DirEntry entry)
                     {
-                        FormatOutput.HandleMatchedFile(
-                            entry, opts.FormatString,
-                            (filenamefound) => OutWriter.WriteLine(filenamefound),
-                            ErrorHandler);
+                        FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
                     }
                     bool IsFilenameMatching(string filename) =>
                             (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
 
-                    Stats stats = RunSequential.Run(opts, IsFilenameMatching, MatchedFileHandler, StatusWriter, ErrorHandler, CrtlCEvent);
+                    Stats stats;
+                    if (opts.RunParallel)
+                    {
+                        stats = RunParallel.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, OutputHandler, CrtlCEvent);
+                    }
+                    else
+                    {
+                        stats = RunSequential.Run(opts, IsFilenameMatching, MatchedFileHandler, StatusWriter, ErrorHandler, CrtlCEvent);
+                    }
 
                     StatusWriter?.WriteWithDots("");
                     if (ErrWriter.hasDataWritten())
@@ -90,8 +97,9 @@ namespace find
         static void WriteStats(Stats stats)
         {
             Console.Error.WriteLine(
-                  "dirs/files     {0}/{1} ({2})\n"
-                + "files matched  {3} ({4})",
+                  "dirs           {0,-10}\n" +
+                  "files          {1,-10} ({2})\n"
+                + "files matched  {3,-10} ({4})",
                     stats.AllDirs, stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
                     stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));
         }
@@ -116,7 +124,8 @@ namespace find
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
                 { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
-                { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v }
+                { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
+                { "l|parallel", "run enumerations in threads",              v => opts.RunParallel = ( v != null) }
             };
             try
             {
