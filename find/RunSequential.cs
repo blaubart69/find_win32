@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 
 using Spi;
@@ -7,11 +8,11 @@ namespace find
 {
     class RunSequential
     {
-        public static Stats Run(Opts opts, Predicate<string> matchFilename, Action<Spi.IO.DirEntry> MatchedFileHandler, Spi.IO.StatusLineWriter StatusWriter, Action<int, string> ErrorHandler, ManualResetEvent CrtlCEvent)
+        public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<string> ProgressHandler, Action<int, string> ErrorHandler, ManualResetEvent CrtlCEvent)
         {
             Stats stats = new Stats();
 
-            foreach (string dir in opts.Dirs)
+            foreach (string dir in dirs)
             {
                 if (CrtlCEvent.WaitOne(0))
                 {
@@ -20,13 +21,14 @@ namespace find
                 Console.Error.WriteLine("scanning [{0}]", dir);
                 EnumDir.Run(
                     Dirname:            dir, 
-                    opts:               opts, 
+                    maxDepth:           maxDepth,
+                    followJunctions:    followJunctions,
                     stats:              ref stats,
                     CrtlCEvent:         CrtlCEvent,
                     IsMatchingFile:      matchFilename,
                     MatchedFileHandler: MatchedFileHandler,
                     ErrorHandler:       ErrorHandler,
-                    ProgressHandler:    (dirname) => { StatusWriter?.WriteWithDots(dirname); } );
+                    ProgressHandler:    ProgressHandler);
             }
 
             return stats;

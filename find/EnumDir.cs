@@ -6,18 +6,18 @@ namespace find
 {
     class EnumDir
     {
-        public static void Run(string Dirname, Opts opts, ref Stats stats, ManualResetEvent CrtlCEvent, Predicate<string> IsMatchingFile, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler)
+        public static void Run(string Dirname, int maxDepth, bool followJunctions, ref Stats stats, ManualResetEvent CrtlCEvent, Predicate<string> IsMatchingFile, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler)
         {
             Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
 
-            string StartDirectoryFullname = System.IO.Path.GetFullPath(Dirname);
+            //string StartDirectoryFullname = System.IO.Path.GetFullPath(Dirname);
 
             foreach (var entry in Spi.IO.Directory.Entries(
-                startDir: StartDirectoryFullname, 
+                startDir: Dirname, 
                 DirErrorHandler: ErrorHandler,
-                FollowJunctions: opts.FollowJunctions,
+                FollowJunctions: followJunctions,
                 EnterDir: null,
-                maxDepth: opts.Depth))
+                maxDepth: maxDepth))
             {
                 if (CrtlCEvent.WaitOne(0))
                 {
@@ -27,7 +27,7 @@ namespace find
                 if (entry.IsDirectory)
                 {
                     stats.AllDirs += 1;
-                    ProgressHandler?.Invoke(StartDirectoryFullname);
+                    ProgressHandler?.Invoke(entry.Fullname);
                 }
                 else
                 {

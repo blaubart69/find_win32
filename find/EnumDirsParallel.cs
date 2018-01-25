@@ -24,64 +24,83 @@ namespace find
     {
         readonly int _maxDepth;
         readonly bool _followJunctions;
-        readonly Action<int, string> _dirErrorHandler;
+        readonly Action<int, string> _ErrorHandler;
         readonly Predicate<string> _matchFilename;
 
         readonly ManualResetEvent _isFinishedEvent;
         readonly AutoResetEvent _entryEnqueuedEvent;
 
-        readonly Queue<Spi.IO.DirEntry> _SHR_queueEntriesFound;
-        long _SHR_queued;
+        readonly Queue<Spi.IO.DirEntry> _FoundEntries;
+        long _EnumerationsQueued;
+        long _EnumerationsRunning;
         Stats _enumStats;
 
-        private EnumDirsParallel(int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<int, string> dirErrorHandler)
+        private EnumDirsParallel(int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> ErrorHandler)
         {
             _maxDepth = maxDepth;
             _followJunctions = followJunctions;
             _matchFilename = matchFilename;
-            _SHR_queued = 0;
-            _SHR_queueEntriesFound = new Queue<Spi.IO.DirEntry>();
-            _dirErrorHandler = dirErrorHandler;
+            
+            _ErrorHandler = ErrorHandler;
             _isFinishedEvent    = new ManualResetEvent(false);
-            _entryEnqueuedEvent = new AutoResetEvent(false);
+            
             _enumStats = new Stats();
+            if (ReportToQueue)
+            {
+                _FoundEntries = new Queue<Spi.IO.DirEntry>();
+                _entryEnqueuedEvent = new AutoResetEvent(false);
+            }
         }
-        public static EnumDirsParallel Start(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<int, string> dirErrorHandler)
+        public static EnumDirsParallel Start(IEnumerable<string> dirs, int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> dirErrorHandler)
         {
-            var enumerator = new EnumDirsParallel(maxDepth, followJunctions, matchFilename, dirErrorHandler);
+            var enumerator = new EnumDirsParallel(maxDepth, followJunctions, ReportToQueue, matchFilename, dirErrorHandler);
             enumerator._internal_Start(dirs);
             return enumerator;
         }
         private void _internal_Start(IEnumerable<string> dirs)
         {
-            _SHR_queued = 1;
-            foreach (string dir in dirs)
+            _EnumerationsQueued = 1;
+            try
             {
-                QueueOneDirForEnumeration(dir: dir, currDepth: -1);
+                foreach (string dir in dirs)
+                {
+                    QueueOneDirForEnumeration(dir: dir, currDepth: -1);
+                }
             }
-            DecrementQueueCountAndSetFinishedIfZero();
+            finally
+            {
+                DecrementEnumerationCountAndSetFinishedIfZero();
+            }
         }
         public Stats EnumStats
         {
             get { return _enumStats;  }
         }
-        public void GetProgress(out ulong running, out ulong FoundEntriesQueueCount, out Stats stats)
+        public bool IsFinished(int millisecondsTimeout)
         {
-            running = (ulong)_SHR_queued;
-            FoundEntriesQueueCount = (ulong)_SHR_queueEntriesFound.Count;
+            return _isFinishedEvent.WaitOne(millisecondsTimeout);
+        }
+        public void GetProgress(out ulong submitted, out ulong running, out ulong FoundEntriesQueueCount, out Stats stats)
+        {
+            submitted = (ulong)_EnumerationsQueued;
+            running = (ulong)_EnumerationsRunning;
+            FoundEntriesQueueCount = _FoundEntries == null ? 0 : (ulong)_FoundEntries.Count;
             stats = _enumStats;
         }
         public bool TryDequeue(out Spi.IO.DirEntry? entry, out bool hasFinished, int millisecondsTimeout)
         {
             entry = null;
 
-            WaitHandle.WaitAny(new WaitHandle[] { _isFinishedEvent, _entryEnqueuedEvent }, millisecondsTimeout);
+            if (_FoundEntries != null)
             {
-                lock (_SHR_queueEntriesFound)
+                WaitHandle.WaitAny(new WaitHandle[] { _isFinishedEvent, _entryEnqueuedEvent }, millisecondsTimeout);
                 {
-                    if (_SHR_queueEntriesFound.Count > 0)
+                    lock (_FoundEntries)
                     {
-                        entry = _SHR_queueEntriesFound.Dequeue();
+                        if (_FoundEntries.Count > 0)
+                        {
+                            entry = _FoundEntries.Dequeue();
+                        }
                     }
                 }
             }
@@ -90,24 +109,29 @@ namespace find
 
             return entry.HasValue;
         }
-        private void DecrementQueueCountAndSetFinishedIfZero()
+        private void DecrementEnumerationCountAndSetFinishedIfZero()
         {
-            if (Interlocked.Decrement(ref _SHR_queued) == 0)
+            if (Interlocked.Decrement(ref _EnumerationsQueued) == 0)
             {
                 // I'm the last. Enumerations have finished
                 _isFinishedEvent.Set();
             }
         }
+        /***
+         * make sure no exception escapes this method!
+         * Otherwise we get an "Unhandled exception" and die
+         ***/
         private void ThreadEnumDir(object state)
         {
             try
             {
+                Interlocked.Increment(ref _EnumerationsRunning);
                 ParallelCtx ctx = (ParallelCtx)state;
                 using (SafeFindHandle SearchHandle = Win32.FindFirstFile(ctx.dir + "\\*", out Win32.WIN32_FIND_DATA find_data))
                 {
                     if (SearchHandle.IsInvalid)
                     {
-                        _dirErrorHandler?.Invoke(Marshal.GetLastWin32Error(), ctx.dir);
+                        _ErrorHandler?.Invoke(Marshal.GetLastWin32Error(), ctx.dir);
                     }
                     else
                     {
@@ -115,9 +139,23 @@ namespace find
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                try
+                {
+                    _ErrorHandler?.Invoke(99,$"Exception caught (ThreadEnumDir): {ex.Message}\n{ex.StackTrace}");
+                }
+                catch (Exception ex2)
+                {
+                    Console.Error.WriteLine("Exception writing exception to ErrorHandler. Bad.");
+                    Console.Error.WriteLine($"First exception: {ex.Message}\n{ex.StackTrace}");
+                    Console.Error.WriteLine($"Second exception: {ex2.Message}\n{ex2.StackTrace}");
+                }
+            }
             finally
             {
-                DecrementQueueCountAndSetFinishedIfZero();
+                Interlocked.Decrement(ref _EnumerationsRunning);
+                DecrementEnumerationCountAndSetFinishedIfZero();
             }
         }
         private void RunThreadEnum(SafeFindHandle SearchHandle, string dirname, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
@@ -148,8 +186,11 @@ namespace find
                         Interlocked.Increment(ref _enumStats.MatchedFiles);
                         Interlocked.Add(ref _enumStats.MatchedBytes, FileSize);
 
-                        // report ONLY matching items
-                        QueueFoundItem(new DirEntry(dirname, find_data));
+                        if (_FoundEntries != null)
+                        {
+                            // report ONLY matching items
+                            QueueFoundItem(new DirEntry(dirname, find_data));
+                        }
                     }
                 }
             }
@@ -157,18 +198,19 @@ namespace find
         }
         private void QueueOneDirForEnumeration(string dir, int currDepth)
         {
-            Interlocked.Increment(ref _SHR_queued);
+            Interlocked.Increment(ref _EnumerationsQueued);
             if (!ThreadPool.QueueUserWorkItem(new WaitCallback(ThreadEnumDir), new ParallelCtx(dir, currDepth + 1)))
             {
-                Interlocked.Decrement(ref _SHR_queued);
+                Interlocked.Decrement(ref _EnumerationsQueued);
+                Console.Error.WriteLine("ThreadPool.QueueUserWorkItem returned false. STOP!");
                 throw new Exception("ThreadPool.QueueUserWorkItem returned false. STOP!");
             }
         }
         private void QueueFoundItem(Spi.IO.DirEntry entry)
         {
-            lock (this._SHR_queueEntriesFound)
+            lock (this._FoundEntries)
             {
-                _SHR_queueEntriesFound.Enqueue(entry);
+                _FoundEntries.Enqueue(entry);
             }
             _entryEnqueuedEvent.Set();
         }
