@@ -1,7 +1,7 @@
 # find_win32
 A find util for the windows platform
 
-+ long path support (\\?\...)
++ long path support (\\\\?\\...)
 + prints timestamps of NTFS files until the end year 30827
 + match filenames via given regex
 
