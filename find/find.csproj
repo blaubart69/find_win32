@@ -40,7 +40,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EnumDir.cs" />
+    <Compile Include="FormatOutput.cs" />
     <Compile Include="Options.cs" />
+    <Compile Include="EnumDirsParallel.cs" />
+    <Compile Include="RunParallel.cs" />
+    <Compile Include="RunSequential.cs" />
     <Compile Include="Spi\ConsoleAndFileWriter.cs" />
     <Compile Include="Spi\IO\Directory.cs" />
     <Compile Include="Spi\IO\DirEntry.cs" />
@@ -56,6 +60,7 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

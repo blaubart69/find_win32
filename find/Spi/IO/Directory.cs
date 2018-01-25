@@ -71,15 +71,16 @@ namespace Spi.IO
                         continue;
                     }
                 }
-                if ( IsDirectoryFlagSet(find_data.dwFileAttributes)) // is a dir
+                if ( Spi.IO.Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)) // is a dir
                 {
-                    if (IsDotOrDotDotDirectory(find_data.cFileName))
+                    if (Misc.IsDotOrDotDotDirectory(find_data.cFileName))
                     {
                         continue;
                     }
                     if ( WalkIntoDir(ref find_data, EnterDir, FollowJunctions) )
                     {
-                        yield return new DirEntry(dir, find_data, baseDirLength);
+                        //yield return new DirEntry(dir.ToString(), find_data, baseDirLength);
+                        yield return new DirEntry(dir.ToString(), find_data);
                         //
                         // go down if depth is ok
                         //
@@ -94,7 +95,8 @@ namespace Spi.IO
                 }
                 else
                 {
-                    yield return new DirEntry(dir,find_data, baseDirLength);
+                    //yield return new DirEntry(dir.ToString(),find_data, baseDirLength);
+                    yield return new DirEntry(dir.ToString(), find_data);
                 }
             } while (SearchHandle != null);
         }
@@ -119,24 +121,7 @@ namespace Spi.IO
             return EnterDir(findData.cFileName);
 
         }
-        private static bool IsDotOrDotDotDirectory(string Filename)
-        {
-            if (Filename[0] == '.')
-            {
-                if (Filename.Length == 1)
-                {
-                    return true;
-                }
-                if (Filename[1] == '.')
-                {
-                    if (Filename.Length == 2)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+        
         private static void StepBack(ref StringBuilder dir, ref Stack<Internal_DirInfo> dirStack, out SafeFindHandle SearchHandle, ref int depth)
         {
             if (dirStack.Count > 0)
@@ -152,9 +137,6 @@ namespace Spi.IO
             }
 
         }
-        public static bool IsDirectoryFlagSet(uint dwFileAttributes)
-        {
-            return (dwFileAttributes & 0x10) != 0;
-        }
+        
     }
 }

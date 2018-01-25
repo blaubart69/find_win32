@@ -2,18 +2,20 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Text.RegularExpressions;
 
 using Spi;
 
 namespace find
 {
-    struct Stats
+    public struct Stats
     {
-        public UInt64 AllBytes;
-        public UInt64 MatchedBytes;
-        public UInt64 AllFiles;
-        public UInt64 AllDirs;
-        public UInt64 MatchedFiles;
+        public long AllBytes;
+        public long MatchedBytes;
+        public long AllFiles;
+        public long AllDirs;
+        public long MatchedFiles;
     }
     class Opts
     {
@@ -41,42 +43,40 @@ namespace find
 
             try
             {
-                bool CrtlC_pressed = false;
-                Stats stats = new Stats();
+                ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
 
                 Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
                 {
                     e.Cancel = true;    // means the program execution should go on
                     Console.Error.WriteLine("CTRL-C pressed. closing files. shutting down...");
-                    CrtlC_pressed = true;
+                    CrtlCEvent.Set(); ;
                 };
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
                 {
-                    Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
-                    foreach (string dir in opts.Dirs)
+                    Spi.IO.StatusLineWriter StatusWriter = opts.progress ? new Spi.IO.StatusLineWriter() : null;
+                    void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir);
+                    void MatchedFileHandler(Spi.IO.DirEntry entry)
                     {
-                        if (CrtlC_pressed)
-                        {
-                            break;
-                        }
-                        Console.Error.WriteLine("scanning [{0}]", dir);
-                        EnumDir.Run(Dirname: dir, opts: opts, stats: ref stats, CrtlC_pressed: ref CrtlC_pressed,
-                            OutputHandler:    (filenamefound) => OutWriter.WriteLine(filenamefound),
-                            ErrorHandler:     (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir),
-                            ProgressCallback: (dirname)       => { if (opts.progress) { StatusWriter.WriteWithDots(dirname); } });
+                        FormatOutput.HandleMatchedFile(
+                            entry, opts.FormatString,
+                            (filenamefound) => OutWriter.WriteLine(filenamefound),
+                            ErrorHandler);
                     }
-                    if ( opts.progress )
-                    {
-                        StatusWriter.WriteWithDots("");
-                    }
+                    bool IsFilenameMatching(string filename) =>
+                            (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
+
+                    Stats stats = RunSequential.Run(opts, IsFilenameMatching, MatchedFileHandler, StatusWriter, ErrorHandler, CrtlCEvent);
+
+                    StatusWriter?.WriteWithDots("");
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]\n", ErrFilename);
                     }
+                    WriteStats(stats);
                 }
-                WriteStats(stats);
+                
             }
             catch (Exception ex)
             {
@@ -86,13 +86,14 @@ namespace find
             }
             return 0;
         }
+
         static void WriteStats(Stats stats)
         {
             Console.Error.WriteLine(
                   "dirs/files     {0}/{1} ({2})\n"
                 + "files matched  {3} ({4})",
-                    stats.AllDirs, stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
-                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+                    stats.AllDirs, stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
+                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
