@@ -52,9 +52,37 @@ namespace Spi.IO
 
             return result; 
         }
+        public static ulong TwoUIntsToULong(uint high, uint low)
+        {
+            ulong h = (ulong)high << 32;
+
+            return h | (ulong)low;
+        }
         public static long FiletimeToLong(FILETIME ft)
         {
             return TwoIntToLong(ft.dwHighDateTime, ft.dwLowDateTime);
+        }
+        public static bool IsDotOrDotDotDirectory(string Filename)
+        {
+            if (Filename[0] == '.')
+            {
+                if (Filename.Length == 1)
+                {
+                    return true;
+                }
+                if (Filename[1] == '.')
+                {
+                    if (Filename.Length == 2)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        public static bool IsDirectoryFlagSet(uint dwFileAttributes)
+        {
+            return (dwFileAttributes & 0x10) != 0;
         }
     }
 }

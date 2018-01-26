@@ -28,10 +28,16 @@ namespace Spi
 
             if (FileWriter == null)
             {
-                FileWriter = new StreamWriter(
-                    path:       Filename,
-                    append:     false,      
-                    encoding:   System.Text.Encoding.UTF8);
+                lock (this)
+                {
+                    if (FileWriter == null)
+                    {
+                        FileWriter = new StreamWriter(
+                            path: Filename,
+                            append: false,
+                            encoding: System.Text.Encoding.UTF8);
+                    }
+                }
             }
 
             _internal_WriteLine(FileWriter, Format, args);
@@ -57,6 +63,11 @@ namespace Spi
         /// <param name="args"></param>
         private void _internal_WriteLine(TextWriter writer, string Format, params object[] args)
         {
+            if ( writer == null )
+            {
+                return;
+            }
+
             if (args == null || args.Length == 0)
             {
                 writer.WriteLine(Format);
