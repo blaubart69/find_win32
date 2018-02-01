@@ -36,6 +36,8 @@ namespace Spi
                             path: Filename,
                             append: false,
                             encoding: System.Text.Encoding.UTF8);
+
+                        FileWriter = TextWriter.Synchronized(FileWriter);
                     }
                 }
             }
