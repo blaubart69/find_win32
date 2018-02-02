@@ -18,7 +18,7 @@ namespace find
                 {
                     break;
                 }
-                Console.Error.WriteLine("scanning [{0}]", dir);
+                
                 EnumDir.Run(
                     Dirname:            dir, 
                     maxDepth:           maxDepth,

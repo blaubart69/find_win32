@@ -11,7 +11,7 @@ namespace find
         public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
         {
             EnumDirsParallel parallelEnumerator 
-                = EnumDirsParallel.Start(dirs, maxDepth, followJunctions, ReportToQueue: MatchedFileHandler != null, matchFilename, ErrorHandler);
+                = EnumDirsParallel.Start(dirs, maxDepth, followJunctions, ReportToQueue: MatchedFileHandler != null, matchFilename, ErrorHandler, CrtlCEvent);
 
             if (MatchedFileHandler == null)
             {

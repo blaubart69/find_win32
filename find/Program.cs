@@ -46,13 +46,29 @@ namespace find
             try
             {
                 ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
+                ThreadPool.QueueUserWorkItem( (state) => 
+                    {
+                        while (true)
+                        {
+                            if (Console.ReadKey().KeyChar == 'q')
+                            {
+                                Console.Error.WriteLine("going down...");
+                                CrtlCEvent.Set();
+                                break;
+                            }
+                        }
+                    });
 
+                /***
+                 *  won't work in multithreaded programs
+                 *
                 Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
                 {
                     e.Cancel = true;    // means the program execution should go on
                     Console.Error.WriteLine("CTRL-C pressed. closing files. shutting down...");
                     CrtlCEvent.Set(); ;
                 };
+                */
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
@@ -71,14 +87,19 @@ namespace find
 
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
                     void OutputHandler(string output) => OutWriter.WriteLine(output);
-                    void MatchedFilePrinter(Spi.IO.DirEntry entry)
-                    {
-                        FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
-                    }
-                    bool IsFilenameMatching(string filename) =>
-                            (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
+                    bool IsFilenameMatching(string filename) => (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
 
-                    Action<Spi.IO.DirEntry> MatchedFileHandler = opts.Sum ? (Action<Spi.IO.DirEntry>)null : MatchedFilePrinter;
+                    if (opts.progress)
+                    {
+                        var writer = new Spi.IO.StatusLineWriter();
+                        ProgressHandler = (progressText) => writer.WriteWithDots(progressText);
+                    }
+
+                    Action<Spi.IO.DirEntry> MatchedFileHandler = null;
+                    if (! opts.Sum)
+                    {
+                        MatchedFileHandler = entry => FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
+                    }
 
                     opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
 
@@ -92,12 +113,12 @@ namespace find
                         stats = RunSequential.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ProgressHandler, ErrorHandler, CrtlCEvent);
                     }
 
-                    StatusWriter?.WriteWithDots("");
+                    WriteStats(stats);
                     if (ErrWriter.hasDataWritten())
                     {
-                        Console.Error.WriteLine("\nerrors were logged to file [{0}]\n", ErrFilename);
+                        Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
                     }
-                    WriteStats(stats);
+                    
                 }
                 
             }
@@ -114,8 +135,9 @@ namespace find
         static void WriteStats(Stats stats)
         {
             Console.Error.WriteLine(
-                  "dirs           {0,10}\n" +
-                  "files          {1,10} ({2})\n"
+                   "\n"
+                +  "dirs           {0,10}\n" 
+                +  "files          {1,10} ({2})\n"
                 + "files matched  {3,10} ({4})",
                     stats.AllDirs, 
                     stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),

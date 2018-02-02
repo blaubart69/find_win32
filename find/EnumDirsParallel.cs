@@ -28,6 +28,7 @@ namespace find
         readonly Predicate<string> _matchFilename;
 
         readonly ManualResetEvent _isFinishedEvent;
+        readonly ManualResetEvent _CtrlCEvent;
         readonly AutoResetEvent _entryEnqueuedEvent;
 
         readonly Queue<Spi.IO.DirEntry> _FoundEntries;
@@ -35,11 +36,12 @@ namespace find
         long _EnumerationsRunning;
         Stats _enumStats;
 
-        private EnumDirsParallel(int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> ErrorHandler)
+        private EnumDirsParallel(int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> ErrorHandler, ManualResetEvent CtrlCEvent)
         {
             _maxDepth = maxDepth;
             _followJunctions = followJunctions;
             _matchFilename = matchFilename;
+            _CtrlCEvent = CtrlCEvent;
             
             _ErrorHandler = ErrorHandler;
             _isFinishedEvent    = new ManualResetEvent(false);
@@ -51,9 +53,9 @@ namespace find
                 _entryEnqueuedEvent = new AutoResetEvent(false);
             }
         }
-        public static EnumDirsParallel Start(IEnumerable<string> dirs, int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> dirErrorHandler)
+        public static EnumDirsParallel Start(IEnumerable<string> dirs, int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> dirErrorHandler, ManualResetEvent CtrlCEvent)
         {
-            var enumerator = new EnumDirsParallel(maxDepth, followJunctions, ReportToQueue, matchFilename, dirErrorHandler);
+            var enumerator = new EnumDirsParallel(maxDepth, followJunctions, ReportToQueue, matchFilename, dirErrorHandler, CtrlCEvent);
             enumerator._internal_Start(dirs);
             return enumerator;
         }
@@ -64,6 +66,10 @@ namespace find
             {
                 foreach (string dir in dirs)
                 {
+                    if (_CtrlCEvent.WaitOne(0))
+                    {
+                        break;
+                    }
                     QueueOneDirForEnumeration(dir: dir, currDepth: -1);
                 }
             }
@@ -125,6 +131,11 @@ namespace find
         {
             try
             {
+                if ( _CtrlCEvent.WaitOne(0) )
+                {
+                    return;
+                }
+
                 Interlocked.Increment(ref _EnumerationsRunning);
                 ParallelCtx ctx = (ParallelCtx)state;
                 using (SafeFindHandle SearchHandle = Win32.FindFirstFile(ctx.dir + "\\*", out Win32.WIN32_FIND_DATA find_data))
@@ -162,6 +173,10 @@ namespace find
         {
             do
             {
+                if (_CtrlCEvent.WaitOne(0))
+                {
+                    break;
+                }
                 if (Spi.IO.Misc.IsDotOrDotDotDirectory(find_data.cFileName))
                 {
                     continue;
