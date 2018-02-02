@@ -38,7 +38,6 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EnumDir.cs" />
@@ -54,6 +53,7 @@
     <Compile Include="Spi\IO\Misc.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Spi\Native\Privilegien.cs" />
     <Compile Include="Spi\Native\SafeFindHandle.cs" />
     <Compile Include="Spi\Native\Win32.cs" />
     <Compile Include="Spi\StatusLineWriter.cs" />

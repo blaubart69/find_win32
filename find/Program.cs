@@ -54,9 +54,18 @@ namespace find
                     CrtlCEvent.Set(); ;
                 };
 
-                using (var ErrWriter = new ConsoleAndFileWriter(null, ErrFilename))
+                using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
                 {
+                    try
+                    {
+                        Spi.Native.PrivilegienStadl.TryToSetBackupPrivilege();
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrWriter.WriteException(ex);
+                    }
+
                     Spi.IO.StatusLineWriter StatusWriter    = opts.progress         ? new Spi.IO.StatusLineWriter() : null;
                     Action<string> ProgressHandler          = StatusWriter == null  ? (Action<string>)null : (progressText) => StatusWriter?.WriteWithDots(progressText);
 
@@ -94,7 +103,7 @@ namespace find
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("Hoppala. Call 5555-D.R.S.P.I.N.D.L.E.R");
+                Console.Error.WriteLine("Hoppala. Call 555-D.R.S.P.I.N.D.L.E.R");
                 Console.Error.WriteLine(ex.Message);
                 Console.Error.WriteLine(ex.StackTrace);
                 return 12;
