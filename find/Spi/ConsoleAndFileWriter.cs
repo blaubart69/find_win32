@@ -17,6 +17,18 @@ namespace Spi
             this.ConsoleWriter = ConsoleWriter;
             this.Filename = Filename;
         }
+        public void WriteException(Exception ex)
+        {
+            this.WriteLine(ex.Message);
+            this.WriteLine(ex.StackTrace);
+            if (ex.InnerException != null)
+            {
+                this.WriteLine("--- inner exception ---");
+                this.WriteLine(ex.InnerException.Message);
+                this.WriteLine(ex.InnerException.StackTrace);
+                this.WriteLine("--- inner exception ---");
+            }
+        }
         public void WriteLine(string Format, params object[] args)
         {
             _internal_WriteLine(ConsoleWriter, Format, args);
