@@ -71,7 +71,7 @@ namespace find
                 */
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
-                using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
+                using (var OutWriter = new ConsoleAndFileWriter(String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, opts.OutFilename))
                 {
                     try
                     {
@@ -82,18 +82,19 @@ namespace find
                         ErrWriter.WriteException(ex);
                     }
 
-                    Spi.IO.StatusLineWriter StatusWriter    = opts.progress         ? new Spi.IO.StatusLineWriter() : null;
-                    Action<string> ProgressHandler          = StatusWriter == null  ? (Action<string>)null : (progressText) => StatusWriter?.WriteWithDots(progressText);
+                    Action<string> ProgressHandler = null;
+                    if ( opts.progress )
+                    {
+                        Spi.StatusLineWriter statusWriter = new StatusLineWriter();
+                        ProgressHandler = (progressText) =>
+                        {
+                            statusWriter.WriteWithDots(progressText);
+                        };
+                    }
 
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
                     void OutputHandler(string output) => OutWriter.WriteLine(output);
                     bool IsFilenameMatching(string filename) => (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
-
-                    if (opts.progress)
-                    {
-                        var writer = new Spi.IO.StatusLineWriter();
-                        ProgressHandler = (progressText) => writer.WriteWithDots(progressText);
-                    }
 
                     Action<Spi.IO.DirEntry> MatchedFileHandler = null;
                     if (! opts.Sum)
@@ -110,7 +111,7 @@ namespace find
                     }
                     else
                     {
-                        stats = RunSequential.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ProgressHandler, ErrorHandler, CrtlCEvent);
+                        stats = RunSequential.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, ProgressHandler, CrtlCEvent);
                     }
 
                     WriteStats(stats);
@@ -120,7 +121,6 @@ namespace find
                     }
                     
                 }
-                
             }
             catch (Exception ex)
             {
@@ -138,7 +138,7 @@ namespace find
                    "\n"
                 +  "dirs           {0,10}\n" 
                 +  "files          {1,10} ({2})\n"
-                + "files matched  {3,10} ({4})",
+                +  "files matched  {3,10} ({4})",
                     stats.AllDirs, 
                     stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
                     stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));

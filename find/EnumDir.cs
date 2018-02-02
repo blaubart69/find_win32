@@ -8,7 +8,7 @@ namespace find
     {
         public static void Run(string Dirname, int maxDepth, bool followJunctions, ref Stats stats, ManualResetEvent CrtlCEvent, Predicate<string> IsMatchingFile, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler)
         {
-            Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
+            Spi.StatusLineWriter StatusWriter = new Spi.StatusLineWriter();
 
             //string StartDirectoryFullname = System.IO.Path.GetFullPath(Dirname);
 

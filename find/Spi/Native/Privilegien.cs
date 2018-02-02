@@ -33,24 +33,24 @@ namespace Spi.Native
                 privilegesToGet.Privileges.Luid.HighPart = 0;
                 privilegesToGet.Privileges.Attributes = bEnablePrivilege ? SE_PRIVILEGE_ENABLED : 0;
 
-                if (!OpenProcessToken(ProcessToken: System.Diagnostics.Process.GetCurrentProcess().Handle            //GetCurrentProcess()
+                if (!OpenProcessToken(   ProcessToken:  System.Diagnostics.Process.GetCurrentProcess().Handle            //GetCurrentProcess()
                                        , DesiredAccess: TokenAccessLevels.Query | TokenAccessLevels.AdjustPrivileges
-                                       , TokenHandle: ref hToken))
+                                       , TokenHandle:   ref hToken))
                 {
                     ThrowWin32Exception("OpenProcessToken");
                 }
-                else if (!LookupPrivilegeValue(lpSystemName: null
-                                                , lpName: szPrivilege
-                                                , Luid: ref privilegesToGet.Privileges.Luid))
+                else if (!LookupPrivilegeValue(     lpSystemName:   null
+                                                ,   lpName:         szPrivilege
+                                                ,   Luid:           ref privilegesToGet.Privileges.Luid))
                 {
                     ThrowWin32Exception("LookupPrivilegeValue");
                 }
-                else if (!AdjustTokenPrivileges(TokenHandle: hToken
-                                                 , DisableAllPrivileges: false
-                                                 , NewState: ref privilegesToGet
-                                                 , BufferLength: (uint)System.Runtime.InteropServices.Marshal.SizeOf(privilegesToGet)
-                                                 , PreviousState: ref prevState
-                                                 , ReturnLength: ref returnLength))
+                else if (!AdjustTokenPrivileges(   TokenHandle:                     hToken
+                                                 , DisableAllPrivileges:            false
+                                                 , NewState:                ref     privilegesToGet
+                                                 , BufferLength:            (uint)System.Runtime.InteropServices.Marshal.SizeOf(privilegesToGet)
+                                                 , PreviousState:           ref     prevState
+                                                 , ReturnLength:            ref     returnLength))
                 {
                     ThrowWin32Exception("AdjustTokenPrivileges");
                 }
