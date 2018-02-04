@@ -2,18 +2,20 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Text.RegularExpressions;
 
 using Spi;
 
 namespace find
 {
-    struct Stats
+    public struct Stats
     {
-        public UInt64 AllBytes;
-        public UInt64 MatchedBytes;
-        public UInt64 AllFiles;
-        public UInt64 AllDirs;
-        public UInt64 MatchedFiles;
+        public long AllBytes;
+        public long MatchedBytes;
+        public long AllFiles;
+        public long AllDirs;
+        public long MatchedFiles;
     }
     class Opts
     {
@@ -26,6 +28,8 @@ namespace find
         public bool FollowJunctions = false;
         public string FilenameWithDirs;
         public int Depth = -1;
+        public bool RunParallel = true;
+        public bool Sum = false;
     }
     class Program
     {
@@ -41,58 +45,81 @@ namespace find
 
             try
             {
-                bool CrtlC_pressed = false;
-                Stats stats = new Stats();
+                ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
 
                 Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
                 {
                     e.Cancel = true;    // means the program execution should go on
                     Console.Error.WriteLine("CTRL-C pressed. closing files. shutting down...");
-                    CrtlC_pressed = true;
+                    CrtlCEvent.Set(); ;
                 };
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
                 {
-                    Spi.IO.StatusLineWriter StatusWriter = new Spi.IO.StatusLineWriter();
-                    foreach (string dir in opts.Dirs)
+                    try
                     {
-                        if (CrtlC_pressed)
-                        {
-                            break;
-                        }
-                        Console.Error.WriteLine("scanning [{0}]", dir);
-                        EnumDir.Run(Dirname: dir, opts: opts, stats: ref stats, CrtlC_pressed: ref CrtlC_pressed,
-                            OutputHandler:    (filenamefound) => OutWriter.WriteLine(filenamefound),
-                            ErrorHandler:     (rc, ErrDir)    => ErrWriter.WriteLine("rc {0}\t{1}", rc, ErrDir),
-                            ProgressCallback: (dirname)       => { if (opts.progress) { StatusWriter.WriteWithDots(dirname); } });
+                        Spi.Native.PrivilegienStadl.TryToSetBackupPrivilege();
                     }
-                    if ( opts.progress )
+                    catch (Exception ex)
                     {
-                        StatusWriter.WriteWithDots("");
+                        ErrWriter.WriteException(ex);
                     }
+
+                    Spi.IO.StatusLineWriter StatusWriter    = opts.progress         ? new Spi.IO.StatusLineWriter() : null;
+                    Action<string> ProgressHandler          = StatusWriter == null  ? (Action<string>)null : (progressText) => StatusWriter?.WriteWithDots(progressText);
+
+                    void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
+                    void OutputHandler(string output) => OutWriter.WriteLine(output);
+                    void MatchedFilePrinter(Spi.IO.DirEntry entry)
+                    {
+                        FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
+                    }
+                    bool IsFilenameMatching(string filename) =>
+                            (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
+
+                    Action<Spi.IO.DirEntry> MatchedFileHandler = opts.Sum ? (Action<Spi.IO.DirEntry>)null : MatchedFilePrinter;
+
+                    opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
+
+                    Stats stats;
+                    if (opts.RunParallel)
+                    {
+                        stats = RunParallel.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, ProgressHandler, CrtlCEvent);
+                    }
+                    else
+                    {
+                        stats = RunSequential.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ProgressHandler, ErrorHandler, CrtlCEvent);
+                    }
+
+                    StatusWriter?.WriteWithDots("");
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]\n", ErrFilename);
                     }
+                    WriteStats(stats);
                 }
-                WriteStats(stats);
+                
             }
             catch (Exception ex)
             {
+                Console.Error.WriteLine("Hoppala. Call 555-D.R.S.P.I.N.D.L.E.R");
                 Console.Error.WriteLine(ex.Message);
                 Console.Error.WriteLine(ex.StackTrace);
                 return 12;
             }
             return 0;
         }
+
         static void WriteStats(Stats stats)
         {
             Console.Error.WriteLine(
-                  "dirs/files     {0}/{1} ({2})\n"
-                + "files matched  {3} ({4})",
-                    stats.AllDirs, stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
-                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+                  "dirs           {0,10}\n" +
+                  "files          {1,10} ({2})\n"
+                + "files matched  {3,10} ({4})",
+                    stats.AllDirs, 
+                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
+                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
@@ -115,7 +142,9 @@ namespace find
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
                 { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
-                { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v }
+                { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
+                { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
+                { "s|sum",      "just count",                               v => opts.Sum = ( v != null) }
             };
             try
             {

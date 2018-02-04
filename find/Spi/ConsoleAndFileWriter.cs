@@ -17,6 +17,18 @@ namespace Spi
             this.ConsoleWriter = ConsoleWriter;
             this.Filename = Filename;
         }
+        public void WriteException(Exception ex)
+        {
+            this.WriteLine(ex.Message);
+            this.WriteLine(ex.StackTrace);
+            if (ex.InnerException != null)
+            {
+                this.WriteLine("--- inner exception ---");
+                this.WriteLine(ex.InnerException.Message);
+                this.WriteLine(ex.InnerException.StackTrace);
+                this.WriteLine("--- inner exception ---");
+            }
+        }
         public void WriteLine(string Format, params object[] args)
         {
             _internal_WriteLine(ConsoleWriter, Format, args);
@@ -28,10 +40,18 @@ namespace Spi
 
             if (FileWriter == null)
             {
-                FileWriter = new StreamWriter(
-                    path:       Filename,
-                    append:     false,      
-                    encoding:   System.Text.Encoding.UTF8);
+                lock (this)
+                {
+                    if (FileWriter == null)
+                    {
+                        FileWriter = new StreamWriter(
+                            path: Filename,
+                            append: false,
+                            encoding: System.Text.Encoding.UTF8);
+
+                        FileWriter = TextWriter.Synchronized(FileWriter);
+                    }
+                }
             }
 
             _internal_WriteLine(FileWriter, Format, args);
@@ -57,6 +77,11 @@ namespace Spi
         /// <param name="args"></param>
         private void _internal_WriteLine(TextWriter writer, string Format, params object[] args)
         {
+            if ( writer == null )
+            {
+                return;
+            }
+
             if (args == null || args.Length == 0)
             {
                 writer.WriteLine(Format);
