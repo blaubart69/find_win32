@@ -79,7 +79,7 @@ namespace Spi.IO
                     }
                     if ( WalkIntoDir(ref find_data, EnterDir, FollowJunctions) )
                     {
-                        yield return new DirEntry(dir.ToString(), find_data, baseDirLength);
+                        yield return new DirEntry(dir.ToString(), baseDirLength, find_data);
                         //yield return new DirEntry(dir.ToString(), find_data);
                         //
                         // go down if depth is ok
@@ -95,7 +95,7 @@ namespace Spi.IO
                 }
                 else
                 {
-                    yield return new DirEntry(dir.ToString(),find_data, baseDirLength);
+                    yield return new DirEntry(dir.ToString(), baseDirLength, find_data);
                     //yield return new DirEntry(dir.ToString(), find_data);
                 }
             } while (SearchHandle != null);

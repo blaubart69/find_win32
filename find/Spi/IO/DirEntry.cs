@@ -1,19 +1,26 @@
 ﻿using System;
+using System.Text;
 using System.Runtime.InteropServices.ComTypes;
 
 namespace Spi.IO
 {
-    public struct DirEntry
+    public sealed class DirEntry
     {
-        private readonly string _BaseDirName;
-        private readonly int _RootDirLen;
+        private readonly string _rootDir;
+        private readonly DirEntry _parentEntry;
         private readonly Spi.Native.Win32.WIN32_FIND_DATA _FindData;
 
-        public DirEntry(string BaseDirName, Spi.Native.Win32.WIN32_FIND_DATA FindData, int RootDirLength)
+        public DirEntry(string RootDirname)
         {
-            this._BaseDirName = BaseDirName;
-            this._RootDirLen = RootDirLength;
+            this._rootDir = RootDirname;
+            this._FindData = new Native.Win32.WIN32_FIND_DATA();
+            this._parentEntry = null;
+        }
+        public DirEntry(DirEntry ParentDir, Spi.Native.Win32.WIN32_FIND_DATA FindData)
+        {
+            this._rootDir = ParentDir._rootDir;
             this._FindData = FindData;
+            this._parentEntry = ParentDir;
         }
 
         public bool IsDirectory { get { return Spi.IO.Misc.IsDirectoryFlagSet(_FindData.dwFileAttributes); } }
@@ -25,7 +32,7 @@ namespace Spi.IO
         {
             get
             {
-                return GetFilenameSinceBaseDir(_BaseDirName, _RootDirLen, _FindData.cFileName);
+                return GetFilenameSinceBaseDir(_Dir, _RootDirLen, _FindData.cFileName);
             }
         }
         
@@ -33,7 +40,12 @@ namespace Spi.IO
         {
             get
             {
-                return _BaseDirName + System.IO.Path.DirectorySeparatorChar + _FindData.cFileName;
+                StringBuilder sb = new StringBuilder();
+                DirEntry e = this;
+                while (e._parentEntry != null)
+                {
+                    sb.Insert()
+                }
             }
         }
         public FILETIME LastWriteTime
@@ -72,7 +84,7 @@ namespace Spi.IO
                 return _FindData.dwFileAttributes;
             }
         }
-
+        /*
         private static string GetFilenameSinceBaseDir(string dir, int baseLen, string filename)
         {
             if (dir.Length == baseLen)
@@ -85,5 +97,6 @@ namespace Spi.IO
                 return dir.Substring(baseLen + 1) + "\\" + filename;
             }
         }
+        */
     }
 }

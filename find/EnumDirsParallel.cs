@@ -9,19 +9,21 @@ using Spi.IO;
 
 namespace find
 {
+    
     class ParallelCtx
     {
-        public readonly string dir;
-        public readonly int depth;
-        public readonly int rootDirLength;
+        public readonly int         depth;
+        public readonly DirEntry    entry;
+        //public readonly string dir;
 
-        public ParallelCtx(string dir, int depth, int rootDirLength)
+        public ParallelCtx(DirEntry entry, int depth)
         {
-            this.dir = dir;
+            //this.dir = dir;
             this.depth = depth;
-            this.rootDirLength = rootDirLength;
+            this.entry = entry;
         }
     }
+    
     public class EnumDirsParallel
     {
         readonly int _maxDepth;
@@ -74,7 +76,7 @@ namespace find
             {
                 foreach (string dir in dirs)
                 {
-                    QueueOneDirForEnumeration(dir: dir, currDepth: -1, dir.Length);
+                    QueueOneDirForEnumeration(entry: new DirEntry(dir), currDepth: -1);
                 }
             }
             finally
@@ -97,7 +99,7 @@ namespace find
             FoundEntriesQueueCount = _FoundEntries == null ? 0 : (ulong)_FoundEntries.Count;
             stats = _enumStats;
         }
-        public bool TryDequeue(out Spi.IO.DirEntry? entry, out bool hasFinished, int millisecondsTimeout)
+        public bool TryDequeue(out Spi.IO.DirEntry entry, out bool hasFinished, int millisecondsTimeout)
         {
             entry = null;
 
@@ -117,7 +119,7 @@ namespace find
 
             hasFinished = _isFinishedEvent.WaitOne(0);
 
-            return entry.HasValue;
+            return entry != null;
         }
         private void DecrementEnumerationQueueCountAndSetFinishedIfZero()
         {
@@ -137,15 +139,15 @@ namespace find
             {
                 Interlocked.Increment(ref _EnumerationsRunning);
                 ParallelCtx ctx = (ParallelCtx)state;
-                using (SafeFindHandle SearchHandle = Win32.FindFirstFile(ctx.dir + "\\*", out Win32.WIN32_FIND_DATA find_data))
+                using (SafeFindHandle SearchHandle = Win32.FindFirstFile(ctx.entry.Fullname + "\\*", out Win32.WIN32_FIND_DATA find_data))
                 {
                     if (SearchHandle.IsInvalid)
                     {
-                        _ErrorHandler?.Invoke(Marshal.GetLastWin32Error(), ctx.dir);
+                        _ErrorHandler?.Invoke(Marshal.GetLastWin32Error(), ctx.entry.Fullname);
                     }
                     else
                     {
-                        RunThreadEnum(SearchHandle, ctx.dir, ctx.depth, ref find_data, ctx.rootDirLength);
+                        RunThreadEnum(SearchHandle, ctx.entry, ctx.depth, ref find_data);
                     }
                 }
             }
@@ -168,7 +170,7 @@ namespace find
                 DecrementEnumerationQueueCountAndSetFinishedIfZero();
             }
         }
-        private void RunThreadEnum(SafeFindHandle SearchHandle, string dirname, int currDepth, ref Win32.WIN32_FIND_DATA find_data, int rootDirLength)
+        private void RunThreadEnum(SafeFindHandle SearchHandle, DirEntry parentEntry, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
         {
             do
             {
@@ -186,7 +188,7 @@ namespace find
 
                     if (WalkIntoDir(ref find_data, _followJunctions, currDepth, _maxDepth))
                     {
-                        QueueOneDirForEnumeration(Path.Combine(dirname, find_data.cFileName), currDepth, rootDirLength);
+                        QueueOneDirForEnumeration(new DirEntry(parentEntry, find_data), currDepth: currDepth + 1);
                     }
                 }
                 else
@@ -203,17 +205,19 @@ namespace find
                         if (_FoundEntries != null)
                         {
                             // report ONLY matching items
-                            QueueFoundItem(new DirEntry(dirname, find_data, rootDirLength));
+                            QueueFoundItem(new DirEntry(parentEntry, find_data));
                         }
                     }
                 }
             }
             while (Win32.FindNextFile(SearchHandle, out find_data));
         }
-        private void QueueOneDirForEnumeration(string dir, int currDepth, int rootDirLength)
+        private void QueueOneDirForEnumeration(DirEntry entry, int currDepth)
         {
             Interlocked.Increment(ref _EnumerationsQueued);
-            if (!ThreadPool.QueueUserWorkItem(new WaitCallback(ThreadEnumDir), new ParallelCtx(dir, currDepth + 1, rootDirLength)))
+            if (!ThreadPool.QueueUserWorkItem(
+                    new WaitCallback(ThreadEnumDir), 
+                    new ParallelCtx(entry, currDepth)))
             {
                 Interlocked.Decrement(ref _EnumerationsQueued);
                 Console.Error.WriteLine("ThreadPool.QueueUserWorkItem returned false. STOP!");

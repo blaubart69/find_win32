@@ -32,10 +32,10 @@ namespace find
             long lastTicksProgressPrinted = 0;
             while (true)
             {
-                parallelEnumerator.TryDequeue(out DirEntry? entry, out bool hasFinished, millisecondsTimeout: 1000);
-                if (entry.HasValue)
+                parallelEnumerator.TryDequeue(out DirEntry entry, out bool hasFinished, millisecondsTimeout: 1000);
+                if (entry != null)
                 {
-                    PrintMatchingFilesHandler?.Invoke(entry.Value);
+                    PrintMatchingFilesHandler?.Invoke(entry);
                 }
                 else if ( hasFinished )
                 {
