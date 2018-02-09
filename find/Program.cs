@@ -30,6 +30,7 @@ namespace find
         public int Depth = -1;
         public bool RunParallel = true;
         public bool Sum = false;
+        public bool tsv = false;
     }
     class Program
     {
@@ -99,7 +100,9 @@ namespace find
                     Action<Spi.IO.DirEntry> MatchedFileHandler = null;
                     if (! opts.Sum)
                     {
-                        MatchedFileHandler = entry => FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
+                        MatchedFileHandler = 
+                            entry => 
+                                FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler, opts.tsv);
                     }
 
                     opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
@@ -160,13 +163,14 @@ namespace find
                 { "r|rname=",   "regex applied to the filename",            v => opts.Pattern = v },
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
-                { "t|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
+                { "d|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
-                { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
+                { "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
-                { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
+                { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
-                { "s|sum",      "just count",                               v => opts.Sum = ( v != null) }
+                { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
+                { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) }
             };
             try
             {

@@ -12,6 +12,11 @@ namespace Spi.IO
             Spi.Native.Win32.StrFormatByteSize((long)Filesize, sb, 50);
             return sb.ToString();
         }
+        public static string GetPrettyFilesize(long Filesize)
+        {
+            return GetPrettyFilesize((ulong)Filesize);
+        }
+
         public static string FiletimeToString(FILETIME filetime)
         {
             Native.Win32.SYSTEMTIME universalSystemtime;

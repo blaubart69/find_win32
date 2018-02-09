@@ -9,10 +9,29 @@ namespace find
     {
         static readonly string[] FormatKeyWords = new string[] { "fullname" };
 
-        public static void HandleMatchedFile(Spi.IO.DirEntry entry, string FormatString, Action<string> OutputHandler, Action<int, string> ErrorHandler)
+        public static void HandleMatchedFile(Spi.IO.DirEntry entry, string FormatString, Action<string> OutputHandler, Action<int, string> ErrorHandler, bool tsvFormat)
         {
+            if ( OutputHandler == null )
+            {
+                return;
+            }
+
             string output;
-            if (String.IsNullOrEmpty(FormatString))
+
+            if ( tsvFormat )
+            {
+                output = $"{entry.Filesize}"
+                    + $"\t{entry.Attributes}"
+                    + $"\t{(ulong)entry.CreationTimeTimeUtcLong}"
+                    + $"\t{(ulong)entry.LastWriteTimeUtcLong}"
+                    + $"\t{(ulong)entry.LastAccessTimeUtcLong}"
+                    + $"\t{entry.NameFromRootDir}";
+            }
+            else if (! String.IsNullOrEmpty(FormatString))
+            {
+                output = FormatLine(FormatString, entry);
+            }
+            else
             {
                 String LastWriteTime = FormatFiletime(entry.LastWriteTime, ErrorHandler);
 
@@ -21,11 +40,8 @@ namespace find
                     entry.Filesize,
                     entry.Fullname);
             }
-            else
-            {
-                output = FormatLine(FormatString, entry);
-            }
-            OutputHandler?.Invoke(output);
+
+            OutputHandler(output);
         }
         static string FormatLine(string Format, Spi.IO.DirEntry entry)
         {

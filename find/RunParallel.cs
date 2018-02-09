@@ -57,11 +57,17 @@ namespace find
             {
                 return;
             }
+
+            var currProc = System.Diagnostics.Process.GetCurrentProcess();
+
             EnumPar.GetProgress(out ulong submitted, out ulong running, out ulong FoundEntriesQueueCount, out Stats tmpStats);
             ProgressHandler(
                   $"Enumerations submitted/running: {submitted}/{running}"
-                + $" | Files seen: {tmpStats.AllFiles} ({       Spi.IO.Misc.GetPrettyFilesize((ulong)tmpStats.AllBytes)})"
-                + $" | Files matched: {tmpStats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize((ulong)tmpStats.MatchedBytes)})");
+                + $" | Files seen/matched: {tmpStats.AllFiles} ({Misc.GetPrettyFilesize(tmpStats.AllBytes)}) / {tmpStats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(tmpStats.MatchedBytes)})"
+                + $" | GC.Total: {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"
+                + $" | PrivateMemory: {Misc.GetPrettyFilesize(currProc.PrivateMemorySize64)}"
+                + $" | Threads: {currProc.Threads.Count}"
+            );
         }
     }
 }
