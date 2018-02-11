@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using System.IO;
 
 using Spi.Native;
 
@@ -18,14 +19,13 @@ namespace find
 
             if ( tsvFormat )
             {
-                writer.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\\{6}"
+                writer.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}\t{5}"
                     , Spi.IO.DirEntry.GetFileSize(find_data)
                     , find_data.dwFileAttributes
                     , Spi.IO.DirEntry.FiletimeToLong(find_data.ftCreationTime)
                     , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastWriteTime)
                     , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastAccessTime)
-                    , rootDir
-                    , String.IsNullOrEmpty(dir) ? find_data.cFileName : System.IO.Path.Combine(dir, find_data.cFileName));
+                    , GetBasename(dir, find_data.cFileName));
             }
             else if (! String.IsNullOrEmpty(FormatString))
             {
@@ -35,12 +35,38 @@ namespace find
             {
                 String LastWriteTime = FormatFiletime(find_data.ftLastWriteTime, ErrorHandler);
 
-                writer.WriteLine("{0}\t{1,12}\t{2}\\{3}",
-                    LastWriteTime,
-                    Spi.IO.DirEntry.GetFileSize(find_data),
-                    rootDir,
-                    String.IsNullOrEmpty(dir) ? find_data.cFileName : System.IO.Path.Combine(dir, find_data.cFileName));
+                writer.WriteLine("{0}\t{1,12}\t{2}"
+                    , LastWriteTime
+                    , Spi.IO.DirEntry.GetFileSize(find_data)
+                    , GetFullname(rootDir, dir, find_data.cFileName));
             }
+        }
+        static string GetBasename(string dir, string filename)
+        {
+            string tmpString;
+            if (String.IsNullOrEmpty(dir))
+            {
+                tmpString = filename;
+            }
+            else
+            {
+                tmpString = Path.Combine(dir, filename);
+            }
+            return tmpString;
+        }
+        static string GetFullname(string rootDir, string dir, string filename)
+        {
+            string tmpString;
+            if ( String.IsNullOrEmpty(dir) )
+            {
+                tmpString = Path.Combine(rootDir, filename);
+            }
+            else
+            {
+                tmpString = Path.Combine(rootDir, dir);
+                tmpString = Path.Combine(tmpString, filename);
+            }
+            return tmpString;
         }
         static string FormatLine(string Format, string rootDir, string dir, Win32.WIN32_FIND_DATA find_data)
         {
@@ -50,7 +76,7 @@ namespace find
                 string ReplaceString = null;
                 switch (magic)
                 {
-                    case "fullname": ReplaceString = rootDir + dir + find_data.cFileName; break;
+                    case "fullname": ReplaceString = GetFullname(rootDir, dir, find_data.cFileName); break;
                 }
                 if (!String.IsNullOrEmpty(ReplaceString))
                 {

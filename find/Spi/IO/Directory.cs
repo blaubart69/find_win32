@@ -29,8 +29,7 @@ namespace Spi.IO
         public static IEnumerable<DirEntry> Entries(string startDir, Action<int,string> DirErrorHandler, int maxDepth, Predicate<string> EnterDir, bool FollowJunctions)
         {
             // expand directory to "unicode" convention
-            StringBuilder           dir             = new StringBuilder( Long.GetLongFilenameNotation(startDir) );
-            int                     rootDirLength   = dir.Length;
+            StringBuilder           dir             = new StringBuilder( startDir );
             SafeFindHandle          SearchHandle    = null;
             Stack<Internal_DirInfo> dirStack        = new Stack<Internal_DirInfo>();
             int                     depth           = 0;
@@ -38,10 +37,14 @@ namespace Spi.IO
 
             bool findFirstFile = true;
 
+            /*
             if (dir[dir.Length-1] == '\\')
             {
                 dir.Length -= 1;
             }
+            */
+
+            int rootDirLength = dir.Length;
 
             do
             {
@@ -105,7 +108,7 @@ namespace Spi.IO
             }
             else
             {
-                return Fullname.Substring(RootDirLength + 1);
+                return Fullname.Substring(RootDirLength);
             }
         }
         private static bool WalkIntoDir(ref Spi.Native.Win32.WIN32_FIND_DATA findData, Predicate<string> EnterDir, bool FollowJunctions)
