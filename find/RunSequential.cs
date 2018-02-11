@@ -8,7 +8,7 @@ namespace find
 {
     class RunSequential
     {
-        public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
+        public static Stats Run(IEnumerable<string> dirs, EnumOptions enumOpts, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
         {
             Stats stats = new Stats();
 
@@ -21,13 +21,9 @@ namespace find
                 
                 EnumDir.Run(
                     Dirname:            dir, 
-                    maxDepth:           maxDepth,
-                    followJunctions:    followJunctions,
+                    opts:               enumOpts,
                     stats:              ref stats,
                     CrtlCEvent:         CrtlCEvent,
-                    IsMatchingFile:      matchFilename,
-                    MatchedFileHandler: MatchedFileHandler,
-                    ErrorHandler:       ErrorHandler,
                     ProgressHandler:    ProgressHandler);
             }
 

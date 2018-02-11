@@ -9,13 +9,15 @@ using Spi;
 
 namespace find
 {
-    public struct Stats
+    public class Stats
     {
         public long AllBytes;
         public long MatchedBytes;
         public long AllFiles;
         public long AllDirs;
         public long MatchedFiles;
+        public long Enqueued;
+        public long EnumerationsRunning;
     }
     class Opts
     {
@@ -80,7 +82,8 @@ namespace find
                     }
                     catch (Exception ex)
                     {
-                        ErrWriter.WriteException(ex);
+                        //ErrWriter.WriteException(ex);
+                        ErrWriter.WriteLine("could not set SE_BACKUP_PRIVILEGE");
                     }
 
                     Action<string> ProgressHandler = null;
@@ -94,27 +97,34 @@ namespace find
                     }
 
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
-                    void OutputHandler(string output) => OutWriter.WriteLine(output);
                     bool IsFilenameMatching(string filename) => (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
 
-                    Action<Spi.IO.DirEntry> MatchedFileHandler = null;
+                    PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
                     {
-                        MatchedFileHandler = 
-                            entry => 
-                                FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler, opts.tsv);
+                        MatchedEntryWriter = (rootDir, dir, find_data) => 
+                                FormatOutput.HandleMatchedFile(rootDir, dir, find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
                     }
 
                     opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
 
                     Stats stats;
+                    EnumOptions enumOpts = new EnumOptions()
+                    {
+                        errorHandler = ErrorHandler,
+                        printHandler = MatchedEntryWriter,
+                        matchFilename = IsFilenameMatching,
+                        followJunctions = opts.FollowJunctions,
+                        maxDepth = opts.Depth
+                    };
+
                     if (opts.RunParallel)
                     {
-                        stats = RunParallel.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, ProgressHandler, CrtlCEvent);
+                        stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
                     }
                     else
                     {
-                        stats = RunSequential.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, ProgressHandler, CrtlCEvent);
+                        stats = RunSequential.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
                     }
 
                     WriteStats(stats);
@@ -143,8 +153,8 @@ namespace find
                 +  "files          {1,10} ({2})\n"
                 +  "files matched  {3,10} ({4})",
                     stats.AllDirs, 
-                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
-                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));
+                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
+                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {

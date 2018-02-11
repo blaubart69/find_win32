@@ -9,124 +9,73 @@ using Spi.IO;
 
 namespace find
 {
+    public delegate void PrintFunction(string rootDir, string dir, Win32.WIN32_FIND_DATA find_data);
     
     class ParallelCtx
     {
-        public readonly int         depth;
-        public readonly DirEntry    entry;
-        //public readonly string dir;
+        public readonly int       depth;
+        public readonly string    dirToSearchSinceRootDir;
 
-        public ParallelCtx(DirEntry entry, int depth)
+        public ParallelCtx(string DirToSearchSinceRootDir, int depth)
         {
-            //this.dir = dir;
             this.depth = depth;
-            this.entry = entry;
+            this.dirToSearchSinceRootDir = DirToSearchSinceRootDir;
         }
     }
     
+    public struct EnumOptions
+    {
+        public int maxDepth;
+        public bool followJunctions;
+        public Predicate<string> matchFilename;
+        public PrintFunction printHandler;
+        public Action<int, string> errorHandler;
+    }
+
     public class EnumDirsParallel
     {
-        readonly int _maxDepth;
-        readonly bool _followJunctions;
-        readonly Action<int, string> _ErrorHandler;
-        readonly Predicate<string> _matchFilename;
-
-        readonly ManualResetEvent _isFinishedEvent;
-        readonly AutoResetEvent _entryEnqueuedEvent;
-
+        readonly string _rootDirname;
+        readonly EnumOptions _opts;
         readonly ManualResetEvent _CtrlCEvent;
+        readonly Spi.CountdownLatch _countdownLatch;
+        Stats _stats;
 
-        readonly Queue<Spi.IO.DirEntry> _FoundEntries;
         long _EnumerationsQueued;
         long _EnumerationsRunning;
-        Stats _enumStats;
 
-        private EnumDirsParallel(int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> ErrorHandler, ManualResetEvent CtrlCEvent)
+        private EnumDirsParallel(string RootDir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats)
         {
-            _maxDepth = maxDepth;
-            _followJunctions = followJunctions;
-            _matchFilename = matchFilename;
+            _rootDirname = RootDir;
+            _opts = opts;
             _CtrlCEvent = CtrlCEvent;
-            
-            _ErrorHandler = ErrorHandler;
-            _isFinishedEvent    = new ManualResetEvent(false);
-            
-            _enumStats = new Stats();
-            if (ReportToQueue)
-            {
-                _FoundEntries = new Queue<Spi.IO.DirEntry>();
-                _entryEnqueuedEvent = new AutoResetEvent(false);
-            }
+            _countdownLatch = CountdownLatch;
+            _stats = stats;
         }
-        ~EnumDirsParallel()
+        public static EnumDirsParallel Start(string dir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats)
         {
-            _isFinishedEvent?.Close();
-            _entryEnqueuedEvent?.Close();
-        }
-        public static EnumDirsParallel Start(IEnumerable<string> dirs, int maxDepth, bool followJunctions, bool ReportToQueue, Predicate<string> matchFilename, Action<int, string> dirErrorHandler, ManualResetEvent CtrlCEvent)
-        {
-            var enumerator = new EnumDirsParallel(maxDepth, followJunctions, ReportToQueue, matchFilename, dirErrorHandler, CtrlCEvent);
-            enumerator._internal_Start(dirs);
+            var enumerator = new EnumDirsParallel(dir, opts, CtrlCEvent, CountdownLatch, ref stats);
+            enumerator._internal_Start(dir);
             return enumerator;
         }
-        private void _internal_Start(IEnumerable<string> dirs)
+        private void _internal_Start(string dir)
         {
             _EnumerationsQueued = 1;
             try
             {
-                foreach (string dir in dirs)
-                {
-                    QueueOneDirForEnumeration(entry: new DirEntry(dir), currDepth: -1);
-                }
+                QueueOneDirForEnumeration(dirSinceRootDir: null, currDepth: -1);
             }
             finally
             {
                 DecrementEnumerationQueueCountAndSetFinishedIfZero();
             }
         }
-        public Stats EnumStats
-        {
-            get { return _enumStats;  }
-        }
-        public bool IsFinished(int millisecondsTimeout)
-        {
-            return _isFinishedEvent.WaitOne(millisecondsTimeout);
-        }
-        public void GetProgress(out ulong submitted, out ulong running, out ulong FoundEntriesQueueCount, out Stats stats)
-        {
-            submitted = (ulong)_EnumerationsQueued;
-            running = (ulong)_EnumerationsRunning;
-            FoundEntriesQueueCount = _FoundEntries == null ? 0 : (ulong)_FoundEntries.Count;
-            stats = _enumStats;
-        }
-        public bool TryDequeue(out Spi.IO.DirEntry entry, out bool hasFinished, int millisecondsTimeout)
-        {
-            entry = null;
-
-            if (_FoundEntries != null)
-            {
-                WaitHandle.WaitAny(new WaitHandle[] { _isFinishedEvent, _entryEnqueuedEvent }, millisecondsTimeout);
-                {
-                    lock (_FoundEntries)
-                    {
-                        if (_FoundEntries.Count > 0)
-                        {
-                            entry = _FoundEntries.Dequeue();
-                        }
-                    }
-                }
-            }
-
-            hasFinished = _isFinishedEvent.WaitOne(0);
-
-            return entry != null;
-        }
         private void DecrementEnumerationQueueCountAndSetFinishedIfZero()
         {
+            Interlocked.Decrement(ref _stats.Enqueued);
             if (Interlocked.Decrement(ref _EnumerationsQueued) == 0)
             {
                 // I'm the last. Enumerations have finished
-                _isFinishedEvent.Set();
+                _countdownLatch.Signal();
             }
         }
         /***
@@ -138,16 +87,29 @@ namespace find
             try
             {
                 Interlocked.Increment(ref _EnumerationsRunning);
+                Interlocked.Increment(ref _stats.EnumerationsRunning);
+
                 ParallelCtx ctx = (ParallelCtx)state;
-                using (SafeFindHandle SearchHandle = Win32.FindFirstFile(ctx.entry.Fullname + "\\*", out Win32.WIN32_FIND_DATA find_data))
+
+                string dirToEnumerate;
+                if ( String.IsNullOrEmpty(ctx.dirToSearchSinceRootDir) )
+                {
+                    dirToEnumerate = this._rootDirname;
+                }
+                else
+                {
+                    dirToEnumerate = Path.Combine(this._rootDirname, ctx.dirToSearchSinceRootDir);
+                }
+
+                using (SafeFindHandle SearchHandle = Win32.FindFirstFile(dirToEnumerate + "\\*", out Win32.WIN32_FIND_DATA find_data))
                 {
                     if (SearchHandle.IsInvalid)
                     {
-                        _ErrorHandler?.Invoke(Marshal.GetLastWin32Error(), ctx.entry.Fullname);
+                        _opts.errorHandler?.Invoke(Marshal.GetLastWin32Error(), dirToEnumerate);
                     }
                     else
                     {
-                        RunThreadEnum(SearchHandle, ctx.entry, ctx.depth, ref find_data);
+                        RunThreadEnum(SearchHandle, ctx.dirToSearchSinceRootDir, ctx.depth, ref find_data);
                     }
                 }
             }
@@ -155,7 +117,7 @@ namespace find
             {
                 try
                 {
-                    _ErrorHandler?.Invoke(99,$"Exception caught (ThreadEnumDir): {ex.Message}\n{ex.StackTrace}");
+                    _opts.errorHandler?.Invoke(99,$"Exception caught (ThreadEnumDir): {ex.Message}\n{ex.StackTrace}");
                 }
                 catch (Exception ex2)
                 {
@@ -167,10 +129,11 @@ namespace find
             finally
             {
                 Interlocked.Decrement(ref _EnumerationsRunning);
+                Interlocked.Decrement(ref _stats.EnumerationsRunning);
                 DecrementEnumerationQueueCountAndSetFinishedIfZero();
             }
         }
-        private void RunThreadEnum(SafeFindHandle SearchHandle, DirEntry parentEntry, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
+        private void RunThreadEnum(SafeFindHandle SearchHandle, string dirNameSinceRootDir, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
         {
             do
             {
@@ -182,55 +145,54 @@ namespace find
                 {
                     continue;
                 }
+                
                 if (Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
                 {
-                    Interlocked.Increment(ref _enumStats.AllDirs);
+                    Interlocked.Increment(ref _stats.AllDirs);
 
-                    if (WalkIntoDir(ref find_data, _followJunctions, currDepth, _maxDepth))
+                    if (WalkIntoDir(ref find_data, _opts.followJunctions, currDepth, _opts.maxDepth))
                     {
-                        QueueOneDirForEnumeration(new DirEntry(parentEntry, find_data), currDepth: currDepth + 1);
+                        QueueOneDirForEnumeration(
+                            dirSinceRootDir: dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName), 
+                            currDepth: currDepth);
                     }
                 }
                 else
                 {
                     long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
-                    Interlocked.Add(ref _enumStats.AllBytes, FileSize);
-                    Interlocked.Increment(ref _enumStats.AllFiles);
+                    Interlocked.Add      (ref _stats.AllBytes, FileSize);
+                    Interlocked.Increment(ref _stats.AllFiles);
 
-                    if ( _matchFilename(find_data.cFileName) )
+                    // TODO: when matching IS NULL
+                    if ( _opts.matchFilename(find_data.cFileName) )
                     {
-                        Interlocked.Increment(ref _enumStats.MatchedFiles);
-                        Interlocked.Add(ref _enumStats.MatchedBytes, FileSize);
+                        Interlocked.Increment(ref _stats.MatchedFiles);
+                        Interlocked.Add(ref _stats.MatchedBytes, FileSize);
 
-                        if (_FoundEntries != null)
-                        {
-                            // report ONLY matching items
-                            QueueFoundItem(new DirEntry(parentEntry, find_data));
-                        }
+                        _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, find_data);
                     }
                 }
             }
             while (Win32.FindNextFile(SearchHandle, out find_data));
         }
-        private void QueueOneDirForEnumeration(DirEntry entry, int currDepth)
+        private void QueueOneDirForEnumeration(string dirSinceRootDir, int currDepth)
         {
             Interlocked.Increment(ref _EnumerationsQueued);
+            Interlocked.Increment(ref _stats.Enqueued);
+
             if (!ThreadPool.QueueUserWorkItem(
                     new WaitCallback(ThreadEnumDir), 
-                    new ParallelCtx(entry, currDepth)))
+                    new ParallelCtx(dirSinceRootDir, currDepth + 1)))
             {
                 Interlocked.Decrement(ref _EnumerationsQueued);
                 Console.Error.WriteLine("ThreadPool.QueueUserWorkItem returned false. STOP!");
                 throw new Exception("ThreadPool.QueueUserWorkItem returned false. STOP!");
             }
         }
-        private void QueueFoundItem(Spi.IO.DirEntry entry)
+        public void GetCounter(out ulong queued, out ulong running)
         {
-            lock (this._FoundEntries)
-            {
-                _FoundEntries.Enqueue(entry);
-            }
-            _entryEnqueuedEvent.Set();
+            queued = (ulong)_EnumerationsQueued;
+            running = (ulong)_EnumerationsRunning;
         }
         private static bool WalkIntoDir(ref Spi.Native.Win32.WIN32_FIND_DATA findData, bool FollowJunctions, int currDepth, int maxDepth)
         {

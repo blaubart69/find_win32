@@ -9,41 +9,40 @@ namespace find
     {
         static readonly string[] FormatKeyWords = new string[] { "fullname" };
 
-        public static void HandleMatchedFile(Spi.IO.DirEntry entry, string FormatString, Action<string> OutputHandler, Action<int, string> ErrorHandler, bool tsvFormat)
+        public static void HandleMatchedFile(string rootDir, string dir, Win32.WIN32_FIND_DATA find_data, string FormatString, Spi.ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
         {
-            if ( OutputHandler == null )
+            if ( writer == null )
             {
                 return;
             }
 
-            string output;
-
             if ( tsvFormat )
             {
-                output = $"{entry.Filesize}"
-                    + $"\t{entry.Attributes}"
-                    + $"\t{(ulong)entry.CreationTimeTimeUtcLong}"
-                    + $"\t{(ulong)entry.LastWriteTimeUtcLong}"
-                    + $"\t{(ulong)entry.LastAccessTimeUtcLong}"
-                    + $"\t{entry.NameFromRootDir}";
+                writer.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\\{6}"
+                    , Spi.IO.DirEntry.GetFileSize(find_data)
+                    , find_data.dwFileAttributes
+                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftCreationTime)
+                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastWriteTime)
+                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastAccessTime)
+                    , rootDir
+                    , String.IsNullOrEmpty(dir) ? find_data.cFileName : System.IO.Path.Combine(dir, find_data.cFileName));
             }
             else if (! String.IsNullOrEmpty(FormatString))
             {
-                output = FormatLine(FormatString, entry);
+                writer.WriteLine(FormatLine(FormatString, rootDir, dir, find_data));
             }
             else
             {
-                String LastWriteTime = FormatFiletime(entry.LastWriteTime, ErrorHandler);
+                String LastWriteTime = FormatFiletime(find_data.ftLastWriteTime, ErrorHandler);
 
-                output = String.Format("{0}\t{1,12}\t{2}",
+                writer.WriteLine("{0}\t{1,12}\t{2}\\{3}",
                     LastWriteTime,
-                    entry.Filesize,
-                    entry.Fullname);
+                    Spi.IO.DirEntry.GetFileSize(find_data),
+                    rootDir,
+                    String.IsNullOrEmpty(dir) ? find_data.cFileName : System.IO.Path.Combine(dir, find_data.cFileName));
             }
-
-            OutputHandler(output);
         }
-        static string FormatLine(string Format, Spi.IO.DirEntry entry)
+        static string FormatLine(string Format, string rootDir, string dir, Win32.WIN32_FIND_DATA find_data)
         {
             StringBuilder sb = new StringBuilder(Format);
             foreach (string magic in FormatKeyWords)
@@ -51,7 +50,7 @@ namespace find
                 string ReplaceString = null;
                 switch (magic)
                 {
-                    case "fullname": ReplaceString = entry.Fullname; break;
+                    case "fullname": ReplaceString = rootDir + dir + find_data.cFileName; break;
                 }
                 if (!String.IsNullOrEmpty(ReplaceString))
                 {

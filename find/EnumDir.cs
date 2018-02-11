@@ -6,18 +6,16 @@ namespace find
 {
     class EnumDir
     {
-        public static void Run(string Dirname, int maxDepth, bool followJunctions, ref Stats stats, ManualResetEvent CrtlCEvent, Predicate<string> IsMatchingFile, Action<Spi.IO.DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler)
+        public static void Run(string Dirname, EnumOptions opts, ref Stats stats, ManualResetEvent CrtlCEvent, Action<string> ProgressHandler)
         {
             Spi.StatusLineWriter StatusWriter = new Spi.StatusLineWriter();
 
-            //string StartDirectoryFullname = System.IO.Path.GetFullPath(Dirname);
-
             foreach (var entry in Spi.IO.Directory.Entries(
                 startDir: Dirname, 
-                DirErrorHandler: ErrorHandler,
-                FollowJunctions: followJunctions,
+                DirErrorHandler: opts.errorHandler,
+                FollowJunctions: opts.followJunctions,
                 EnterDir: null,
-                maxDepth: maxDepth))
+                maxDepth: opts.maxDepth))
             {
                 if (CrtlCEvent.WaitOne(0))
                 {
@@ -27,18 +25,18 @@ namespace find
                 if (entry.IsDirectory)
                 {
                     stats.AllDirs += 1;
-                    ProgressHandler?.Invoke(entry.Fullname);
+                    ProgressHandler?.Invoke(entry.Name);
                 }
                 else
                 {
                     stats.AllBytes += (long)entry.Filesize;
                     stats.AllFiles += 1;
 
-                    if ( IsMatchingFile?.Invoke(entry.Name) == true )
+                    if ( opts.matchFilename?.Invoke(entry.Name) == true )
                     { 
                         stats.MatchedBytes += (long)entry.Filesize;
                         stats.MatchedFiles += 1;
-                        MatchedFileHandler?.Invoke(entry);
+                        opts.printHandler?.Invoke(Dirname, entry.dirSinceRootDir, entry._FindData);
                     }
                 }
             }

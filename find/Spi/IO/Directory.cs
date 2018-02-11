@@ -30,7 +30,7 @@ namespace Spi.IO
         {
             // expand directory to "unicode" convention
             StringBuilder           dir             = new StringBuilder( Long.GetLongFilenameNotation(startDir) );
-            int                     baseDirLength   = dir.Length;
+            int                     rootDirLength   = dir.Length;
             SafeFindHandle          SearchHandle    = null;
             Stack<Internal_DirInfo> dirStack        = new Stack<Internal_DirInfo>();
             int                     depth           = 0;
@@ -54,10 +54,7 @@ namespace Spi.IO
                     dir.Length -= 2;    // remove \* added before
                     if (SearchHandle.IsInvalid)
                     {
-                        if ( DirErrorHandler != null)
-                        {
-                            DirErrorHandler(Marshal.GetLastWin32Error(), dir.ToString());
-                        }
+                        DirErrorHandler?.Invoke(Marshal.GetLastWin32Error(), dir.ToString());
                         StepBack(ref dir, ref dirStack, out SearchHandle, ref depth);
                         continue;
                     }
@@ -79,7 +76,7 @@ namespace Spi.IO
                     }
                     if ( WalkIntoDir(ref find_data, EnterDir, FollowJunctions) )
                     {
-                        yield return new DirEntry(dir.ToString(), baseDirLength, find_data);
+                        yield return new DirEntry( RemoveRootDir(dir.ToString(), rootDirLength),  find_data);
                         //yield return new DirEntry(dir.ToString(), find_data);
                         //
                         // go down if depth is ok
@@ -95,10 +92,21 @@ namespace Spi.IO
                 }
                 else
                 {
-                    yield return new DirEntry(dir.ToString(), baseDirLength, find_data);
+                    yield return new DirEntry(RemoveRootDir(dir.ToString(), rootDirLength), find_data);
                     //yield return new DirEntry(dir.ToString(), find_data);
                 }
             } while (SearchHandle != null);
+        }
+        private static string RemoveRootDir(string Fullname, int RootDirLength)
+        {
+            if ( Fullname.Length == RootDirLength )
+            {
+                return String.Empty;
+            }
+            else
+            {
+                return Fullname.Substring(RootDirLength + 1);
+            }
         }
         private static bool WalkIntoDir(ref Spi.Native.Win32.WIN32_FIND_DATA findData, Predicate<string> EnterDir, bool FollowJunctions)
         {
