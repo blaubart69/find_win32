@@ -49,18 +49,22 @@ namespace find
             try
             {
                 ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
-                ThreadPool.QueueUserWorkItem( (state) => 
+
+                new Thread(new ThreadStart(() =>
+                {
+                    while (true)
                     {
-                        while (true)
+                        if (Console.ReadKey().KeyChar == 'q')
                         {
-                            if (Console.ReadKey().KeyChar == 'q')
-                            {
-                                Console.Error.WriteLine("going down...");
-                                CrtlCEvent.Set();
-                                break;
-                            }
+                            Console.Error.WriteLine("going down...");
+                            CrtlCEvent.Set();
+                            break;
                         }
-                    });
+                    }
+                }))
+                { IsBackground = true }.Start();
+
+                ThreadPool.SetMaxThreads(64, 1);
 
                 /***
                  *  won't work in multithreaded programs
@@ -74,7 +78,7 @@ namespace find
                 */
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
-                using (var OutWriter = new ConsoleAndFileWriter(String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, opts.OutFilename))
+                using (var OutWriter = new ConsoleAndFileWriter(ConsoleWriter: String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, Filename: opts.OutFilename))
                 {
                     try
                     {

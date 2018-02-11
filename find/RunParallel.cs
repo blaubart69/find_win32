@@ -13,14 +13,11 @@ namespace find
         public static Stats Run(IEnumerable<string> dirs, EnumOptions opts, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
         {
             Spi.CountdownLatch countdown = new Spi.CountdownLatch(dirs.Count());
-            Process currProc = System.Diagnostics.Process.GetCurrentProcess();
             Stats stats = new Stats();
 
-            List<EnumDirsParallel> enums = new List<EnumDirsParallel>();
             foreach (string dir in dirs)
             {
                 EnumDirsParallel parallelEnumerator = EnumDirsParallel.Start(dir, opts, CrtlCEvent, countdown, ref stats);
-                enums.Add(parallelEnumerator);
             }
 
             while ( ! countdown.Wait(1000) )
@@ -29,21 +26,25 @@ namespace find
                 {
                     break;
                 }
-                PrintProgress(ProgressHandler, stats, currProc);
+                PrintProgress(ProgressHandler, stats);
             }
+            PrintProgress(ProgressHandler, stats);
 
             return stats;
         }
-        private static void PrintProgress(Action<string> ProgressHandler, Stats stats, Process currProc)
+        private static void PrintProgress(Action<string> ProgressHandler, Stats stats)
         {
             if ( ProgressHandler == null)
             {
                 return;
             }
 
+            Process currProc = System.Diagnostics.Process.GetCurrentProcess();
+
             ProgressHandler(
                   $"Enumerations enqueued/running: {stats.Enqueued}/{stats.EnumerationsRunning}"
-                + $" | Files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+                + $" | files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+                + $" | dirs seen: {stats.AllDirs}"
                 + $" | GC.Total: {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"
                 + $" | PrivateMemory: {Misc.GetPrettyFilesize(currProc.PrivateMemorySize64)}"
                 + $" | Threads: {currProc.Threads.Count}"
