@@ -33,6 +33,7 @@ namespace find
         public bool RunParallel = true;
         public bool Sum = false;
         public bool tsv = false;
+        public string Encoding = null;
     }
     class Program
     {
@@ -66,19 +67,20 @@ namespace find
 
                 ThreadPool.SetMaxThreads(64, 1);
 
-                /***
-                 *  won't work in multithreaded programs
-                 *
-                Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
+                System.Text.Encoding OutEncoding;
+                if ( "16LE".Equals(opts.Encoding, StringComparison.OrdinalIgnoreCase) )
                 {
-                    e.Cancel = true;    // means the program execution should go on
-                    Console.Error.WriteLine("CTRL-C pressed. closing files. shutting down...");
-                    CrtlCEvent.Set(); ;
-                };
-                */
+                    OutEncoding = System.Text.Encoding.Unicode;
+                }
+                else
+                {
+                    OutEncoding = System.Text.Encoding.UTF8;
+                }
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
-                using (var OutWriter = new ConsoleAndFileWriter(ConsoleWriter: String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, Filename: opts.OutFilename))
+                using (var OutWriter = new ConsoleAndFileWriter(ConsoleWriter:  String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, 
+                                                                Filename:       opts.OutFilename, 
+                                                                encoding:       OutEncoding))
                 {
                     try
                     {
@@ -107,12 +109,11 @@ namespace find
                     if (! opts.Sum)
                     {
                         MatchedEntryWriter = (rootDir, dir, find_data) => 
-                                FormatOutput.HandleMatchedFile(rootDir, dir, find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
+                                FormatOutput.PrintEntry(rootDir, dir, find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
                     }
 
                     opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
 
-                    Stats stats;
                     EnumOptions enumOpts = new EnumOptions()
                     {
                         errorHandler = ErrorHandler,
@@ -122,6 +123,7 @@ namespace find
                         maxDepth = opts.Depth
                     };
 
+                    Stats stats;
                     if (opts.RunParallel)
                     {
                         stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
@@ -184,7 +186,8 @@ namespace find
                 { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
-                { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) }
+                { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) },
+                { "e|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v }
             };
             try
             {

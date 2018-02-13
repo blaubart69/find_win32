@@ -10,7 +10,7 @@ namespace find
     {
         static readonly string[] FormatKeyWords = new string[] { "fullname" };
 
-        public static void HandleMatchedFile(string rootDir, string dir, Win32.WIN32_FIND_DATA find_data, string FormatString, Spi.ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
+        public static void PrintEntry(string rootDir, string dir, Win32.WIN32_FIND_DATA find_data, string FormatString, Spi.ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
         {
             if ( writer == null )
             {
@@ -19,13 +19,16 @@ namespace find
 
             if ( tsvFormat )
             {
+                GetFirstDirAndRest(dir, find_data.cFileName, out string baseDir, out string rest);
+
                 writer.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}\t{5}"
+                    , GetBasename(dir, find_data.cFileName)
                     , Spi.IO.DirEntry.GetFileSize(find_data)
                     , find_data.dwFileAttributes
                     , Spi.IO.DirEntry.FiletimeToLong(find_data.ftCreationTime)
                     , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastWriteTime)
-                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastAccessTime)
-                    , GetBasename(dir, find_data.cFileName));
+                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastAccessTime));
+                    //, GetBasename(dir, find_data.cFileName));
             }
             else if (! String.IsNullOrEmpty(FormatString))
             {
@@ -39,6 +42,29 @@ namespace find
                     , LastWriteTime
                     , Spi.IO.DirEntry.GetFileSize(find_data)
                     , GetFullname(rootDir, dir, find_data.cFileName));
+            }
+        }
+        static void GetFirstDirAndRest(string dir, string filename, out string baseDir, out string rest)
+        {
+            int firstBackslash = -1;
+            if ( String.IsNullOrEmpty(dir) )
+            {
+                baseDir = string.Empty;
+                rest = filename;
+            }
+            else
+            {
+                firstBackslash = dir.IndexOf('\\');
+                if ( firstBackslash == -1)
+                {
+                    baseDir = dir;
+                    rest = filename;
+                }
+                else
+                {
+                    baseDir = dir.Substring(0, firstBackslash);
+                    rest = dir.Substring(firstBackslash + 1);
+                }
             }
         }
         static string GetBasename(string dir, string filename)
