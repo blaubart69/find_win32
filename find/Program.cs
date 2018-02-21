@@ -18,6 +18,8 @@ namespace find
         public long MatchedFiles;
         public long Enqueued;
         public long EnumerationsRunning;
+        public string LongestFilename;
+        public int LongestFilenameLength;
     }
     class Opts
     {
@@ -34,6 +36,7 @@ namespace find
         public bool Sum = false;
         public bool tsv = false;
         public string Encoding = null;
+        public bool printLongestFilename = false;
     }
     class Program
     {
@@ -64,8 +67,6 @@ namespace find
                     }
                 }))
                 { IsBackground = true }.Start();
-
-                ThreadPool.SetMaxThreads(64, 1);
 
                 System.Text.Encoding OutEncoding;
                 if ( "16LE".Equals(opts.Encoding, StringComparison.OrdinalIgnoreCase) )
@@ -120,7 +121,8 @@ namespace find
                         printHandler = MatchedEntryWriter,
                         matchFilename = IsFilenameMatching,
                         followJunctions = opts.FollowJunctions,
-                        maxDepth = opts.Depth
+                        maxDepth = opts.Depth,
+                        lookForLongestFilename = opts.printLongestFilename
                     };
 
                     Stats stats;
@@ -133,7 +135,7 @@ namespace find
                         stats = RunSequential.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
                     }
 
-                    WriteStats(stats);
+                    WriteStats(stats, opts.printLongestFilename);
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
@@ -151,7 +153,7 @@ namespace find
             return 0;
         }
 
-        static void WriteStats(Stats stats)
+        static void WriteStats(Stats stats, bool printLongestFilename)
         {
             Console.Error.WriteLine(
                    "\n"
@@ -161,6 +163,11 @@ namespace find
                     stats.AllDirs, 
                     stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
                     stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+            if ( printLongestFilename)
+            {
+                Console.Error.WriteLine($"Longest filename len:  {stats.LongestFilenameLength}");
+                Console.Error.WriteLine($"Longest filename name: {stats.LongestFilename}");
+            }
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
@@ -187,7 +194,8 @@ namespace find
                 { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
                 { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) },
-                { "e|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v }
+                { "e|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
+                { "l|len",      "print out longrst seen filename",          v => opts.printLongestFilename = (v != null) }
             };
             try
             {

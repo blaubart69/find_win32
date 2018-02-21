@@ -30,6 +30,7 @@ namespace find
         public Predicate<string> matchFilename;
         public PrintFunction printHandler;
         public Action<int, string> errorHandler;
+        public bool lookForLongestFilename;
     }
 
     public class EnumDirsParallel
@@ -170,6 +171,17 @@ namespace find
                         Interlocked.Add(ref _stats.MatchedBytes, FileSize);
 
                         _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, find_data);
+                    }
+                    if (_opts.lookForLongestFilename)
+                    {
+                        int currLength = _rootDirname.Length + 1
+                                            + (String.IsNullOrEmpty(dirNameSinceRootDir) ? 0 : dirNameSinceRootDir.Length + 1)
+                                            + find_data.cFileName.Length;
+                        if (currLength > _stats.LongestFilenameLength)
+                        {
+                            _stats.LongestFilenameLength = currLength;
+                            _stats.LongestFilename = Path.Combine(_rootDirname, dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName));
+                        }
                     }
                 }
             }
