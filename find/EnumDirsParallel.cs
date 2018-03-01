@@ -9,7 +9,7 @@ using Spi.IO;
 
 namespace find
 {
-    public delegate void PrintFunction(string rootDir, string dir, Win32.WIN32_FIND_DATA find_data);
+    public delegate void PrintFunction(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data);
     
     class ParallelCtx
     {
@@ -22,7 +22,12 @@ namespace find
             this.dirToSearchSinceRootDir = DirToSearchSinceRootDir;
         }
     }
-    
+    public enum EMIT
+    {
+        FILES,
+        DIRS,
+        BOTH
+    }
     public struct EnumOptions
     {
         public int maxDepth;
@@ -31,6 +36,7 @@ namespace find
         public PrintFunction printHandler;
         public Action<int, string> errorHandler;
         public bool lookForLongestFilename;
+        public EMIT emit;
     }
 
     public class EnumDirsParallel
@@ -164,14 +170,6 @@ namespace find
                     Interlocked.Add      (ref _stats.AllBytes, FileSize);
                     Interlocked.Increment(ref _stats.AllFiles);
 
-                    // TODO: when matching IS NULL
-                    if ( _opts.matchFilename(find_data.cFileName) )
-                    {
-                        Interlocked.Increment(ref _stats.MatchedFiles);
-                        Interlocked.Add(ref _stats.MatchedBytes, FileSize);
-
-                        _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, find_data);
-                    }
                     if (_opts.lookForLongestFilename)
                     {
                         int currLength = _rootDirname.Length + 1
@@ -181,6 +179,23 @@ namespace find
                         {
                             _stats.LongestFilenameLength = currLength;
                             _stats.LongestFilename = Path.Combine(_rootDirname, dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName));
+                        }
+                    }
+                }
+
+                {
+                    // TODO: when matching IS NULL
+                    if (_opts.matchFilename(find_data.cFileName))
+                    {
+                        long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
+                        Interlocked.Increment(ref _stats.MatchedFiles);
+                        Interlocked.Add(ref _stats.MatchedBytes, FileSize);
+
+                        if ( (_opts.emit == EMIT.BOTH)
+                          || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
+                          || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
+                        {
+                            _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, ref find_data);
                         }
                     }
                 }

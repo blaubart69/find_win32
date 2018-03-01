@@ -21,6 +21,7 @@ namespace find
         public string LongestFilename;
         public int LongestFilenameLength;
     }
+    
     class Opts
     {
         public IEnumerable<string> Dirs;
@@ -37,6 +38,7 @@ namespace find
         public bool tsv = false;
         public string Encoding = null;
         public bool printLongestFilename = false;
+        public EMIT emitEntries = EMIT.FILES;
     }
     class Program
     {
@@ -49,6 +51,8 @@ namespace find
             {
                 return 8;
             }
+
+            //Console.WriteLine($"emit: {opts.emitEntries.ToString("g")}");
 
             try
             {
@@ -87,10 +91,10 @@ namespace find
                     {
                         Spi.Native.PrivilegienStadl.TryToSetBackupPrivilege();
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         //ErrWriter.WriteException(ex);
-                        ErrWriter.WriteLine("could not set SE_BACKUP_PRIVILEGE");
+                        Console.Error.WriteLine("could not set SE_BACKUP_PRIVILEGE");
                     }
 
                     Action<string> ProgressHandler = null;
@@ -109,8 +113,8 @@ namespace find
                     PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
                     {
-                        MatchedEntryWriter = (rootDir, dir, find_data) => 
-                                FormatOutput.PrintEntry(rootDir, dir, find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
+                        MatchedEntryWriter = (string rootDir, string dir, ref Spi.Native.Win32.WIN32_FIND_DATA find_data) => 
+                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
                     }
 
                     opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
@@ -122,7 +126,8 @@ namespace find
                         matchFilename = IsFilenameMatching,
                         followJunctions = opts.FollowJunctions,
                         maxDepth = opts.Depth,
-                        lookForLongestFilename = opts.printLongestFilename
+                        lookForLongestFilename = opts.printLongestFilename,
+                        emit = opts.emitEntries
                     };
 
                     Stats stats;
@@ -182,20 +187,22 @@ namespace find
         static Opts GetOpts(string[] args)
         {
             Opts opts = new Opts();
+            string emit = null;
             var p = new Mono.Options.OptionSet() {
                 { "r|rname=",   "regex applied to the filename",            v => opts.Pattern = v },
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
                 { "d|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
-                { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
                 { "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
                 { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
                 { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) },
-                { "e|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
-                { "l|len",      "print out longrst seen filename",          v => opts.printLongestFilename = (v != null) }
+                { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
+                { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
+                { "e|emit=",    "emit what {f|d|b} (files, directories, both)", v => emit = v.ToUpper() },
+                { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
             try
             {
@@ -222,6 +229,25 @@ namespace find
                 else if (opts.Dirs.Count() == 0)
                 {
                     opts.Dirs = new string[] { Directory.GetCurrentDirectory() };
+                }
+                if ( !String.IsNullOrEmpty(emit) )
+                {
+                    if (emit.StartsWith("F"))
+                    {
+                        opts.emitEntries = EMIT.FILES;
+                    }
+                    else if (emit.StartsWith("D"))
+                    {
+                        opts.emitEntries = EMIT.DIRS;
+                    }
+                    else if (emit.StartsWith("B"))
+                    { 
+                        opts.emitEntries = EMIT.BOTH;
+                    }
+                    else
+                    {
+                        opts.emitEntries = EMIT.FILES;
+                    }
                 }
             }
             catch (Mono.Options.OptionException oex)

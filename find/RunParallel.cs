@@ -10,14 +10,14 @@ namespace find
 {
     class RunParallel
     {
-        public static Stats Run(IEnumerable<string> dirs, EnumOptions opts, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
+        public static Stats Run(IEnumerable<string> dirs, EnumOptions enumOpts, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
         {
             Spi.CountdownLatch countdown = new Spi.CountdownLatch(dirs.Count());
             Stats stats = new Stats();
 
             foreach (string dir in dirs)
             {
-                EnumDirsParallel parallelEnumerator = EnumDirsParallel.Start(dir, opts, CrtlCEvent, countdown, ref stats);
+                EnumDirsParallel parallelEnumerator = EnumDirsParallel.Start(dir, enumOpts, CrtlCEvent, countdown, ref stats);
             }
 
             while ( ! countdown.Wait(1000) )

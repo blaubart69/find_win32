@@ -26,6 +26,7 @@ namespace find
                 {
                     stats.AllDirs += 1;
                     ProgressHandler?.Invoke(entry.Name);
+                    opts.printHandler?.Invoke(Dirname, entry.dirSinceRootDir, ref entry._FindData);
                 }
                 else
                 {
@@ -36,7 +37,7 @@ namespace find
                     { 
                         stats.MatchedBytes += (long)entry.Filesize;
                         stats.MatchedFiles += 1;
-                        opts.printHandler?.Invoke(Dirname, entry.dirSinceRootDir, entry._FindData);
+                        opts.printHandler?.Invoke(Dirname, entry.dirSinceRootDir, ref entry._FindData);
                     }
                 }
             }

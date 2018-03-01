@@ -6,6 +6,31 @@ namespace Spi.IO
 {
     public class Misc
     {
+        public static string NiceDuration(TimeSpan ts)
+        {
+            string res;
+            if (ts.TotalHours >= 24)
+            {
+                res = String.Format("{0}d {1}h {2}m {3}s {4}ms", ts.Days, ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds);
+            }
+            else if (ts.TotalMinutes >= 60)
+            {
+                res = String.Format("{0}h {1}m {2}s {3}ms", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds);
+            }
+            else if (ts.TotalSeconds >= 60)
+            {
+                res = String.Format("{0}m {1}s {2}ms", ts.Minutes, ts.Seconds, ts.Milliseconds);
+            }
+            else if (ts.TotalMilliseconds >= 1000)
+            {
+                res = String.Format("{0}s {1}ms", ts.Seconds, ts.Milliseconds);
+            }
+            else
+            {
+                res = String.Format("{0}ms", ts.Milliseconds);
+            }
+            return res;
+        }
         public static string GetPrettyFilesize(ulong Filesize)
         {
             StringBuilder sb = new StringBuilder(50);

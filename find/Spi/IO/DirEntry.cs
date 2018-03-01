@@ -7,7 +7,7 @@ namespace Spi.IO
 {
     public sealed class DirEntry
     {
-        public readonly Spi.Native.Win32.WIN32_FIND_DATA _FindData;
+        public Spi.Native.Win32.WIN32_FIND_DATA _FindData;
         public readonly string dirSinceRootDir;
 
         public DirEntry(string dirSinceRootDir, Spi.Native.Win32.WIN32_FIND_DATA FindData)

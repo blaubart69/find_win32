@@ -8,9 +8,9 @@ namespace find
 {
     public class FormatOutput
     {
-        static readonly string[] FormatKeyWords = new string[] { "fullname" };
+        static readonly string[] FormatKeyWords = new string[] { "fullname", "filename" };
 
-        public static void PrintEntry(string rootDir, string dir, Win32.WIN32_FIND_DATA find_data, string FormatString, Spi.ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
+        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, string FormatString, Spi.ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
         {
             if ( writer == null )
             {
@@ -103,6 +103,7 @@ namespace find
                 switch (magic)
                 {
                     case "fullname": ReplaceString = GetFullname(rootDir, dir, find_data.cFileName); break;
+                    case "filename": ReplaceString = find_data.cFileName; break;
                 }
                 if (!String.IsNullOrEmpty(ReplaceString))
                 {
