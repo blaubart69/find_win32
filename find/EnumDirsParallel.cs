@@ -134,7 +134,7 @@ namespace find
             {
                 Interlocked.Decrement(ref _EnumerationsRunning);
                 Interlocked.Decrement(ref _stats.EnumerationsRunning);
-                DecrementEnumerationQueueCountAndSetFinishedIfZero();
+                Interlocked.Decrement(ref _ThreadpoolUserItemsEnqueued);
             }
         }
         private void EnumerateDirFirst(string dirToSearchSinceRootDir, int depth)
