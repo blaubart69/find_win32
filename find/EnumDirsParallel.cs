@@ -47,20 +47,26 @@ namespace find
         readonly Spi.CountdownLatch _countdownLatch;
         Stats _stats;
 
+        readonly Queue<ParallelCtx> _workItems;
+        int _ThreadpoolUserItemsEnqueued;
+        int _maxThreads;
+
         long _EnumerationsQueued;
         long _EnumerationsRunning;
 
-        private EnumDirsParallel(string RootDir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats)
+        private EnumDirsParallel(string RootDir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats, int maxThreads)
         {
             _rootDirname = RootDir;
             _opts = opts;
             _CtrlCEvent = CtrlCEvent;
             _countdownLatch = CountdownLatch;
             _stats = stats;
+            _workItems = new Queue<ParallelCtx>();
+            _maxThreads = maxThreads;
         }
-        public static EnumDirsParallel Start(string dir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats)
+        public static EnumDirsParallel Start(string dir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats, int maxThreads)
         {
-            var enumerator = new EnumDirsParallel(dir, opts, CtrlCEvent, CountdownLatch, ref stats);
+            var enumerator = new EnumDirsParallel(dir, opts, CtrlCEvent, CountdownLatch, ref stats, maxThreads);
             enumerator._internal_Start(dir);
             return enumerator;
         }
@@ -96,28 +102,19 @@ namespace find
                 Interlocked.Increment(ref _EnumerationsRunning);
                 Interlocked.Increment(ref _stats.EnumerationsRunning);
 
-                ParallelCtx ctx = (ParallelCtx)state;
-
-                string dirToEnumerate;
-                if ( String.IsNullOrEmpty(ctx.dirToSearchSinceRootDir) )
+                while (true)
                 {
-                    dirToEnumerate = this._rootDirname;
-                }
-                else
-                {
-                    dirToEnumerate = Path.Combine(this._rootDirname, ctx.dirToSearchSinceRootDir);
-                }
-
-                using (SafeFindHandle SearchHandle = Win32.FindFirstFile(dirToEnumerate + "\\*", out Win32.WIN32_FIND_DATA find_data))
-                {
-                    if (SearchHandle.IsInvalid)
+                    ParallelCtx ctx = null;
+                    lock (_workItems)
                     {
-                        _opts.errorHandler?.Invoke(Marshal.GetLastWin32Error(), dirToEnumerate);
+                        if (_workItems.Count == 0)
+                        {
+                            break;
+                        }
+                        ctx = _workItems.Dequeue();
                     }
-                    else
-                    {
-                        RunThreadEnum(SearchHandle, ctx.dirToSearchSinceRootDir, ctx.depth, ref find_data);
-                    }
+                    EnumerateDirFirst(ctx.dirToSearchSinceRootDir, ctx.depth);
+                    DecrementEnumerationQueueCountAndSetFinishedIfZero();
                 }
             }
             catch (Exception ex)
@@ -140,7 +137,31 @@ namespace find
                 DecrementEnumerationQueueCountAndSetFinishedIfZero();
             }
         }
-        private void RunThreadEnum(SafeFindHandle SearchHandle, string dirNameSinceRootDir, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
+        private void EnumerateDirFirst(string dirToSearchSinceRootDir, int depth)
+        {
+            string dirToEnumerate;
+            if (String.IsNullOrEmpty(dirToSearchSinceRootDir))
+            {
+                dirToEnumerate = this._rootDirname;
+            }
+            else
+            {
+                dirToEnumerate = Path.Combine(this._rootDirname, dirToSearchSinceRootDir);
+            }
+
+            using (SafeFindHandle SearchHandle = Win32.FindFirstFile(dirToEnumerate + "\\*", out Win32.WIN32_FIND_DATA find_data))
+            {
+                if (SearchHandle.IsInvalid)
+                {
+                    _opts.errorHandler?.Invoke(Marshal.GetLastWin32Error(), dirToEnumerate);
+                }
+                else
+                {
+                    EnumerateDirNext(SearchHandle, dirToSearchSinceRootDir, depth, ref find_data);
+                }
+            }
+        }
+        private void EnumerateDirNext(SafeFindHandle SearchHandle, string dirNameSinceRootDir, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
         {
             do
             {
@@ -207,6 +228,7 @@ namespace find
             Interlocked.Increment(ref _EnumerationsQueued);
             Interlocked.Increment(ref _stats.Enqueued);
 
+            /*
             if (!ThreadPool.QueueUserWorkItem(
                     new WaitCallback(ThreadEnumDir), 
                     new ParallelCtx(dirSinceRootDir, currDepth + 1)))
@@ -215,6 +237,29 @@ namespace find
                 Console.Error.WriteLine("ThreadPool.QueueUserWorkItem returned false. STOP!");
                 throw new Exception("ThreadPool.QueueUserWorkItem returned false. STOP!");
             }
+            */
+
+            bool startNewThread = false;
+            lock (_workItems)
+            {
+                _workItems.Enqueue(new ParallelCtx(dirSinceRootDir, currDepth + 1));
+
+                if (_ThreadpoolUserItemsEnqueued < _maxThreads)
+                {
+                    startNewThread = true;
+                    Interlocked.Increment(ref _ThreadpoolUserItemsEnqueued);
+                }
+            }
+
+            if (startNewThread)
+            {
+                if (!ThreadPool.QueueUserWorkItem(callBack: new WaitCallback(ThreadEnumDir)))
+                {
+                    Interlocked.Decrement(ref _ThreadpoolUserItemsEnqueued);
+                    throw new Exception("ThreadPool.QueueUserWorkItem returned false. STOP!");
+                }
+            }
+
         }
         public void GetCounter(out ulong queued, out ulong running)
         {
