@@ -8,14 +8,20 @@ namespace Spi
 {
     public class ConsoleAndFileWriter : IDisposable
     {
-        private readonly    TextWriter  ConsoleWriter;
-        private             TextWriter  FileWriter;
-        private readonly    string      Filename;
+        private readonly    TextWriter              ConsoleWriter;
+        private             TextWriter              FileWriter;
+        private readonly    string                  Filename;
+        private readonly    System.Text.Encoding    encoding;
 
-        public ConsoleAndFileWriter(TextWriter ConsoleWriter, string Filename)
+        public ConsoleAndFileWriter(TextWriter ConsoleWriter, string Filename, Encoding encoding)
         {
             this.ConsoleWriter = ConsoleWriter;
             this.Filename = Filename;
+            this.encoding = encoding;
+        }
+        public ConsoleAndFileWriter(TextWriter ConsoleWriter, string Filename)
+            : this(ConsoleWriter, Filename, Encoding.UTF8)
+        {
         }
         public void WriteException(Exception ex)
         {
@@ -47,7 +53,7 @@ namespace Spi
                         FileWriter = new StreamWriter(
                             path: Filename,
                             append: false,
-                            encoding: System.Text.Encoding.UTF8);
+                            encoding: this.encoding);
 
                         FileWriter = TextWriter.Synchronized(FileWriter);
                     }

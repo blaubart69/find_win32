@@ -34,6 +34,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>7.2</LangVersion>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -47,6 +48,7 @@
     <Compile Include="RunParallel.cs" />
     <Compile Include="RunSequential.cs" />
     <Compile Include="Spi\ConsoleAndFileWriter.cs" />
+    <Compile Include="Spi\CountdownLatch.cs" />
     <Compile Include="Spi\IO\Directory.cs" />
     <Compile Include="Spi\IO\DirEntry.cs" />
     <Compile Include="Spi\IO\Long.cs" />

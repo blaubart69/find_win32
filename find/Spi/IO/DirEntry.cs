@@ -1,65 +1,66 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices.ComTypes;
 
 namespace Spi.IO
 {
-    public struct DirEntry
+    public sealed class DirEntry
     {
-        private readonly string _BaseDirName;
-        //private readonly int BaseDirLen;
-        private readonly Spi.Native.Win32.WIN32_FIND_DATA FindData;
+        public Spi.Native.Win32.WIN32_FIND_DATA _FindData;
+        public readonly string dirSinceRootDir;
 
-        public bool IsDirectory { get { return Spi.IO.Misc.IsDirectoryFlagSet(FindData.dwFileAttributes); } }
-        public bool IsFile { get { return !IsDirectory; } }
-        public string Name { get { return FindData.cFileName; } }
-        public UInt64 Filesize { get { return (((UInt64)FindData.nFileSizeHigh) << 32) | (UInt64)FindData.nFileSizeLow; } }
-        /*
-        public string DirAndFilenameFromStartDir { get { return GetFilenameSinceBaseDir(Dirname, BaseDirLen, FindData.cFileName); } }
-        */
-        public string Fullname
+        public DirEntry(string dirSinceRootDir, Spi.Native.Win32.WIN32_FIND_DATA FindData)
         {
-            get
-            {
-                return _BaseDirName + System.IO.Path.DirectorySeparatorChar + FindData.cFileName;
-            }
+            this.dirSinceRootDir = dirSinceRootDir;
+            this._FindData = FindData;
         }
+        public bool IsDirectory { get { return Spi.IO.Misc.IsDirectoryFlagSet(_FindData.dwFileAttributes); } }
+        public bool IsFile { get { return !IsDirectory; } }
+        public string Name { get { return _FindData.cFileName; } }
+        public UInt64 Filesize { get { return (((UInt64)_FindData.nFileSizeHigh) << 32) | (UInt64)_FindData.nFileSizeLow; } }
         public FILETIME LastWriteTime
         {
             get
             {
-                //return Spi.IO.Long.ConvertFromFiletime(FindData.ftLastWriteTime.dwHighDateTime, FindData.ftLastWriteTime.dwLowDateTime);
-                return FindData.ftLastWriteTime;
+                return _FindData.ftLastWriteTime;
             }
         }
         public long LastWriteTimeUtcLong
         {
             get
             {
-                return Misc.TwoIntToLong(
-                    FindData.ftLastWriteTime.dwHighDateTime, 
-                    FindData.ftLastWriteTime.dwLowDateTime);
+                return Misc.FiletimeToLong(_FindData.ftLastWriteTime);
             }
         }
-        public DirEntry(string BaseDirName, Spi.Native.Win32.WIN32_FIND_DATA FindData)
+        public long LastAccessTimeUtcLong
         {
-            this._BaseDirName = BaseDirName;
-            //this.BaseDirLen = BaseDirLen;
-            this.FindData = FindData;
+            get
+            {
+                return Misc.FiletimeToLong(_FindData.ftLastAccessTime);
+            }
         }
-        /*
-        private static string GetFilenameSinceBaseDir(string dir, int baseLen, string filename)
+        public long CreationTimeTimeUtcLong
         {
-            if (dir.Length == baseLen)
+            get
             {
-                return filename;
-            }
-            else
-            {
-                // must be larger
-                return dir.Substring(baseLen + 1) + "\\" + filename;
+                return Misc.FiletimeToLong(_FindData.ftCreationTime);
             }
         }
-        */
+        public uint Attributes
+        {
+            get
+            {
+                return _FindData.dwFileAttributes;
+            }
+        }
+        public static UInt64 GetFileSize(Spi.Native.Win32.WIN32_FIND_DATA find_data)
+        {
+            return Spi.IO.Misc.TwoUIntsToULong(high: find_data.nFileSizeHigh, low: find_data.nFileSizeLow);
+        }
+        public static long FiletimeToLong(FILETIME time)
+        {
+            return Misc.TwoIntToLong( high: time.dwHighDateTime, low: time.dwLowDateTime);
+        }
     }
 }

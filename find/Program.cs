@@ -9,14 +9,19 @@ using Spi;
 
 namespace find
 {
-    public struct Stats
+    public class Stats
     {
         public long AllBytes;
         public long MatchedBytes;
         public long AllFiles;
         public long AllDirs;
         public long MatchedFiles;
+        public long Enqueued;
+        public long EnumerationsRunning;
+        public string LongestFilename;
+        public int LongestFilenameLength;
     }
+    
     class Opts
     {
         public IEnumerable<string> Dirs;
@@ -30,6 +35,11 @@ namespace find
         public int Depth = -1;
         public bool RunParallel = true;
         public bool Sum = false;
+        public bool tsv = false;
+        public string Encoding = null;
+        public bool printLongestFilename = false;
+        public EMIT emitEntries = EMIT.FILES;
+        public int maxThreads = 32;
     }
     class Program
     {
@@ -43,63 +53,101 @@ namespace find
                 return 8;
             }
 
+            //Console.WriteLine($"emit: {opts.emitEntries.ToString("g")}");
+
             try
             {
                 ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
 
-                Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
+                new Thread(new ThreadStart(() =>
                 {
-                    e.Cancel = true;    // means the program execution should go on
-                    Console.Error.WriteLine("CTRL-C pressed. closing files. shutting down...");
-                    CrtlCEvent.Set(); ;
-                };
+                    while (true)
+                    {
+                        if (Console.ReadKey().KeyChar == 'q')
+                        {
+                            Console.Error.WriteLine("going down...");
+                            CrtlCEvent.Set();
+                            break;
+                        }
+                    }
+                }))
+                { IsBackground = true }.Start();
+
+                System.Text.Encoding OutEncoding;
+                if ( "16LE".Equals(opts.Encoding, StringComparison.OrdinalIgnoreCase) )
+                {
+                    OutEncoding = System.Text.Encoding.Unicode;
+                }
+                else
+                {
+                    OutEncoding = System.Text.Encoding.UTF8;
+                }
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
-                using (var OutWriter = new ConsoleAndFileWriter(Console.Out, opts.OutFilename))
+                using (var OutWriter = new ConsoleAndFileWriter(ConsoleWriter:  String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, 
+                                                                Filename:       opts.OutFilename, 
+                                                                encoding:       OutEncoding))
                 {
                     try
                     {
                         Spi.Native.PrivilegienStadl.TryToSetBackupPrivilege();
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        ErrWriter.WriteException(ex);
+                        //ErrWriter.WriteException(ex);
+                        Console.Error.WriteLine("could not set SE_BACKUP_PRIVILEGE");
                     }
 
-                    Spi.IO.StatusLineWriter StatusWriter    = opts.progress         ? new Spi.IO.StatusLineWriter() : null;
-                    Action<string> ProgressHandler          = StatusWriter == null  ? (Action<string>)null : (progressText) => StatusWriter?.WriteWithDots(progressText);
+                    Action<string> ProgressHandler = null;
+                    if ( opts.progress )
+                    {
+                        Spi.StatusLineWriter statusWriter = new StatusLineWriter();
+                        ProgressHandler = (progressText) =>
+                        {
+                            statusWriter.WriteWithDots(progressText);
+                        };
+                    }
 
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
-                    void OutputHandler(string output) => OutWriter.WriteLine(output);
-                    void MatchedFilePrinter(Spi.IO.DirEntry entry)
-                    {
-                        FormatOutput.HandleMatchedFile(entry, opts.FormatString, OutputHandler, ErrorHandler);
-                    }
-                    bool IsFilenameMatching(string filename) =>
-                            (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
+                    bool IsFilenameMatching(string filename) => (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
 
-                    Action<Spi.IO.DirEntry> MatchedFileHandler = opts.Sum ? (Action<Spi.IO.DirEntry>)null : MatchedFilePrinter;
+                    PrintFunction MatchedEntryWriter = null;
+                    if (! opts.Sum)
+                    {
+                        MatchedEntryWriter = (string rootDir, string dir, ref Spi.Native.Win32.WIN32_FIND_DATA find_data) => 
+                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
+                    }
 
                     opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
+
+                    EnumOptions enumOpts = new EnumOptions()
+                    {
+                        errorHandler = ErrorHandler,
+                        printHandler = MatchedEntryWriter,
+                        matchFilename = IsFilenameMatching,
+                        followJunctions = opts.FollowJunctions,
+                        maxDepth = opts.Depth,
+                        lookForLongestFilename = opts.printLongestFilename,
+                        emit = opts.emitEntries
+                    };
 
                     Stats stats;
                     if (opts.RunParallel)
                     {
-                        stats = RunParallel.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ErrorHandler, ProgressHandler, CrtlCEvent);
+                        stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent, opts.maxThreads);
                     }
                     else
                     {
-                        stats = RunSequential.Run(opts.Dirs, opts.Depth, opts.FollowJunctions, IsFilenameMatching, MatchedFileHandler, ProgressHandler, ErrorHandler, CrtlCEvent);
+                        stats = RunSequential.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
                     }
 
-                    StatusWriter?.WriteWithDots("");
+                    WriteStats(stats, opts.printLongestFilename);
                     if (ErrWriter.hasDataWritten())
                     {
-                        Console.Error.WriteLine("\nerrors were logged to file [{0}]\n", ErrFilename);
+                        Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
                     }
-                    WriteStats(stats);
+                    
                 }
-                
             }
             catch (Exception ex)
             {
@@ -111,15 +159,21 @@ namespace find
             return 0;
         }
 
-        static void WriteStats(Stats stats)
+        static void WriteStats(Stats stats, bool printLongestFilename)
         {
             Console.Error.WriteLine(
-                  "dirs           {0,10}\n" +
-                  "files          {1,10} ({2})\n"
-                + "files matched  {3,10} ({4})",
+                   "\n"
+                +  "dirs           {0,10}\n" 
+                +  "files          {1,10} ({2})\n"
+                +  "files matched  {3,10} ({4})",
                     stats.AllDirs, 
-                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize((ulong)stats.AllBytes),
-                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize((ulong)stats.MatchedBytes));
+                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
+                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+            if ( printLongestFilename)
+            {
+                Console.Error.WriteLine($"Longest filename len:  {stats.LongestFilenameLength}");
+                Console.Error.WriteLine($"Longest filename name: {stats.LongestFilename}");
+            }
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
@@ -134,17 +188,23 @@ namespace find
         static Opts GetOpts(string[] args)
         {
             Opts opts = new Opts();
+            string emit = null;
             var p = new Mono.Options.OptionSet() {
                 { "r|rname=",   "regex applied to the filename",            v => opts.Pattern = v },
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
-                { "t|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
-                { "h|help",     "show this message and exit",               v => opts.show_help = v != null },
-                { "f|format=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
+                { "d|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
+                { "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
-                { "d|dir=",     "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
+                { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
-                { "s|sum",      "just count",                               v => opts.Sum = ( v != null) }
+                { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
+                { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) },
+                { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
+                { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
+                { "e|emit=",    "emit what {f|d|b} (files, directories, both)", v => emit = v.ToUpper() },
+                { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
+                { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
             try
             {
@@ -171,6 +231,25 @@ namespace find
                 else if (opts.Dirs.Count() == 0)
                 {
                     opts.Dirs = new string[] { Directory.GetCurrentDirectory() };
+                }
+                if ( !String.IsNullOrEmpty(emit) )
+                {
+                    if (emit.StartsWith("F"))
+                    {
+                        opts.emitEntries = EMIT.FILES;
+                    }
+                    else if (emit.StartsWith("D"))
+                    {
+                        opts.emitEntries = EMIT.DIRS;
+                    }
+                    else if (emit.StartsWith("B"))
+                    { 
+                        opts.emitEntries = EMIT.BOTH;
+                    }
+                    else
+                    {
+                        opts.emitEntries = EMIT.FILES;
+                    }
                 }
             }
             catch (Mono.Options.OptionException oex)

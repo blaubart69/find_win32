@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
+using System.Diagnostics;
 
 using Spi.IO;
 
@@ -8,50 +10,45 @@ namespace find
 {
     class RunParallel
     {
-        public static Stats Run(IEnumerable<string> dirs, int maxDepth, bool followJunctions, Predicate<string> matchFilename, Action<DirEntry> MatchedFileHandler, Action<int, string> ErrorHandler, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent)
+        public static Stats Run(IEnumerable<string> dirs, EnumOptions enumOpts, Action<string> ProgressHandler, ManualResetEvent CrtlCEvent, int maxThreads)
         {
-            EnumDirsParallel parallelEnumerator 
-                = EnumDirsParallel.Start(dirs, maxDepth, followJunctions, ReportToQueue: MatchedFileHandler != null, matchFilename, ErrorHandler);
+            Spi.CountdownLatch countdown = new Spi.CountdownLatch(dirs.Count());
+            Stats stats = new Stats();
 
-            if (MatchedFileHandler == null)
+            foreach (string dir in dirs)
             {
-                while ( ! parallelEnumerator.IsFinished(1000) )
-                {
-                    PrintProgress(parallelEnumerator, ProgressHandler);
-                }
+                EnumDirsParallel parallelEnumerator = EnumDirsParallel.Start(dir, enumOpts, CrtlCEvent, countdown, ref stats, maxThreads);
             }
-            else
+
+            while ( ! countdown.Wait(1000) )
             {
-                while (true)
+                if ( CrtlCEvent.WaitOne(0) )
                 {
-                    parallelEnumerator.TryDequeue(out DirEntry? entry, out bool hasFinished, millisecondsTimeout: 1000);
-                    if (entry.HasValue)
-                    {
-                        MatchedFileHandler?.Invoke(entry.Value);
-                    }
-                    else if (!hasFinished)
-                    {
-                        PrintProgress(parallelEnumerator, ProgressHandler);
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    break;
                 }
+                PrintProgress(ProgressHandler, stats);
             }
-            return parallelEnumerator.EnumStats;
+            PrintProgress(ProgressHandler, stats);
+
+            return stats;
         }
-        private static void PrintProgress(EnumDirsParallel EnumPar, Action<string> ProgressHandler)
+        private static void PrintProgress(Action<string> ProgressHandler, Stats stats)
         {
             if ( ProgressHandler == null)
             {
                 return;
             }
-            EnumPar.GetProgress(out ulong submitted, out ulong running, out ulong FoundEntriesQueueCount, out Stats tmpStats);
+
+            Process currProc = System.Diagnostics.Process.GetCurrentProcess();
+
             ProgressHandler(
-                  $"Enumerations submitted/running: {submitted}/{running}"
-                + $" | Files seen: {tmpStats.AllFiles} ({       Spi.IO.Misc.GetPrettyFilesize((ulong)tmpStats.AllBytes)})"
-                + $" | Files matched: {tmpStats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize((ulong)tmpStats.MatchedBytes)})");
+                  $"Enumerations enqueued/running: {stats.Enqueued}/{stats.EnumerationsRunning}"
+                + $" | files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+                + $" | dirs seen: {stats.AllDirs}"
+                + $" | GC.Total: {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"
+                + $" | PrivateMemory: {Misc.GetPrettyFilesize(currProc.PrivateMemorySize64)}"
+                + $" | Threads: {currProc.Threads.Count}"
+            );
         }
     }
 }
