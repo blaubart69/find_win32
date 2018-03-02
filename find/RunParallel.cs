@@ -45,9 +45,10 @@ namespace find
                   $"Enumerations enqueued/running: {stats.Enqueued}/{stats.EnumerationsRunning}"
                 + $" | files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
                 + $" | dirs seen: {stats.AllDirs}"
-                + $" | GC.Total: {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"
-                + $" | PrivateMemory: {Misc.GetPrettyFilesize(currProc.PrivateMemorySize64)}"
-                + $" | Threads: {currProc.Threads.Count}"
+                + $" | GC/VirtMem/Threads"
+                + $" {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"
+                + $"/{Misc.GetPrettyFilesize(currProc.VirtualMemorySize64)}"
+                + $"/{currProc.Threads.Count}"
             );
         }
     }
