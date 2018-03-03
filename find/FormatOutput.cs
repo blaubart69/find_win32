@@ -38,11 +38,24 @@ namespace find
             {
                 String LastWriteTime = FormatFiletime(find_data.ftLastWriteTime, ErrorHandler);
 
-                writer.WriteLine("{0}\t{1,12}\t{2}"
+                writer.WriteLine("{0}\t{1,12}\t{2}\t{3}"
                     , LastWriteTime
                     , Spi.IO.DirEntry.GetFileSize(find_data)
+                    , GetAttributes(find_data.dwFileAttributes)
                     , GetFullname(rootDir, dir, find_data.cFileName));
             }
+        }
+        static string GetAttributes(uint dwFileAttributes)
+        {
+            StringBuilder sb = new StringBuilder(5);
+            sb.Length = 5;
+            sb[0] = ((dwFileAttributes & (uint)System.IO.FileAttributes.Archive)   != 0 ) ? 'A' : '-';
+            sb[1] = ((dwFileAttributes & (uint)System.IO.FileAttributes.System)    != 0 ) ? 'S' : '-';
+            sb[2] = ((dwFileAttributes & (uint)System.IO.FileAttributes.Hidden)    != 0 ) ? 'H' : '-';
+            sb[3] = ((dwFileAttributes & (uint)System.IO.FileAttributes.ReadOnly)  != 0 ) ? 'R' : '-';
+            sb[4] = ((dwFileAttributes & (uint)System.IO.FileAttributes.Directory) != 0 ) ? 'D' : '-';
+
+            return sb.ToString();
         }
         static void GetFirstDirAndRest(string dir, string filename, out string baseDir, out string rest)
         {

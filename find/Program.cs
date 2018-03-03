@@ -38,7 +38,7 @@ namespace find
         public bool tsv = false;
         public string Encoding = null;
         public bool printLongestFilename = false;
-        public EMIT emitEntries = EMIT.FILES;
+        public EMIT emitEntries = EMIT.BOTH;
         public int maxThreads = 32;
     }
     class Program
@@ -202,7 +202,7 @@ namespace find
                 { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) },
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
                 { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
-                { "e|emit=",    "emit what {f|d|b} (files, directories, both)", v => emit = v.ToUpper() },
+                { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
                 { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
