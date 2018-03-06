@@ -109,8 +109,11 @@ namespace find
                     }
 
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
-                    bool IsFilenameMatching(string filename) => (opts.Pattern == null) ? true : Regex.IsMatch(filename, opts.Pattern);
-
+                    Predicate<string> MatchHandler = null;
+                    if ( ! String.IsNullOrEmpty(opts.Pattern) )
+                    {
+                        MatchHandler = (string filename) => Regex.IsMatch(filename, opts.Pattern);
+                    }
                     PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
                     {
@@ -124,7 +127,7 @@ namespace find
                     {
                         errorHandler = ErrorHandler,
                         printHandler = MatchedEntryWriter,
-                        matchFilename = IsFilenameMatching,
+                        matchFilename = MatchHandler,
                         followJunctions = opts.FollowJunctions,
                         maxDepth = opts.Depth,
                         lookForLongestFilename = opts.printLongestFilename,

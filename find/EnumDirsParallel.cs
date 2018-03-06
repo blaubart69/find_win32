@@ -67,24 +67,60 @@ namespace find
         public static EnumDirsParallel Start(string dir, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats, int maxThreads)
         {
             var enumerator = new EnumDirsParallel(dir, opts, CtrlCEvent, CountdownLatch, ref stats, maxThreads);
-            enumerator._internal_Start(dir);
+            enumerator._internal_Start();
             return enumerator;
         }
-        private void _internal_Start(string dir)
+        public static EnumDirsParallel Start(string RootDir, IEnumerable<string> relativeDirs, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats, int maxThreads)
         {
+            var enumerator = new EnumDirsParallel(RootDir, opts, CtrlCEvent, CountdownLatch, ref stats, maxThreads);
+            enumerator._internal_Start(relativeDirs);
+            return enumerator;
+        }
+        private void _internal_Start()
+        {
+            //
+            // THIS INCREMENTS ARE FOR ...
+            //
             _EnumerationsQueued = 1;
+            Interlocked.Increment(ref _stats.Enqueued);
             try
             {
                 QueueOneDirForEnumeration(dirSinceRootDir: null, currDepth: -1);
             }
             finally
             {
+                //
+                // ... THAT DECREMENTS.
+                //
+                DecrementEnumerationQueueCountAndSetFinishedIfZero();
+            }
+        }
+        private void _internal_Start(IEnumerable<string> relativeDirs)
+        {
+            //
+            // THIS INCREMENTS ARE FOR ...
+            //
+            _EnumerationsQueued = 1;
+            Interlocked.Increment(ref _stats.Enqueued);
+
+            try
+            {
+                foreach (string relativeDir in relativeDirs)
+                {
+                    QueueOneDirForEnumeration(dirSinceRootDir: relativeDir, currDepth: -1);
+                }
+            }
+            finally
+            {
+                //
+                // ... THAT DECREMENTS.
+                //
                 DecrementEnumerationQueueCountAndSetFinishedIfZero();
             }
         }
         private void DecrementEnumerationQueueCountAndSetFinishedIfZero()
         {
-            Interlocked.Decrement(ref _stats.Enqueued);
+                Interlocked.Decrement(ref _stats.Enqueued);
             if (Interlocked.Decrement(ref _EnumerationsQueued) == 0)
             {
                 // I'm the last. Enumerations have finished
@@ -204,20 +240,22 @@ namespace find
                     }
                 }
 
-                {
-                    // TODO: when matching IS NULL
-                    if (_opts.matchFilename(find_data.cFileName))
-                    {
-                        long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
-                        Interlocked.Increment(ref _stats.MatchedFiles);
-                        Interlocked.Add(ref _stats.MatchedBytes, FileSize);
+                bool ShouldEmit =
+                    (_opts.matchFilename != null && _opts.matchFilename(find_data.cFileName))
+                ||  (_opts.matchFilename == null);
 
-                        if ( (_opts.emit == EMIT.BOTH)
-                          || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
-                          || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
-                        {
-                            _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, ref find_data);
-                        }
+                // TODO: when matching IS NULL
+                if (ShouldEmit)
+                {
+                    long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
+                    Interlocked.Increment(ref _stats.MatchedFiles);
+                    Interlocked.Add      (ref _stats.MatchedBytes, FileSize);
+
+                    if ( (_opts.emit == EMIT.BOTH)
+                        || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
+                        || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
+                    {
+                        _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, ref find_data);
                     }
                 }
             }
@@ -227,17 +265,6 @@ namespace find
         {
             Interlocked.Increment(ref _EnumerationsQueued);
             Interlocked.Increment(ref _stats.Enqueued);
-
-            /*
-            if (!ThreadPool.QueueUserWorkItem(
-                    new WaitCallback(ThreadEnumDir), 
-                    new ParallelCtx(dirSinceRootDir, currDepth + 1)))
-            {
-                Interlocked.Decrement(ref _EnumerationsQueued);
-                Console.Error.WriteLine("ThreadPool.QueueUserWorkItem returned false. STOP!");
-                throw new Exception("ThreadPool.QueueUserWorkItem returned false. STOP!");
-            }
-            */
 
             bool startNewThread = false;
             lock (_workItems)
@@ -259,7 +286,6 @@ namespace find
                     throw new Exception("ThreadPool.QueueUserWorkItem returned false. STOP!");
                 }
             }
-
         }
         public void GetCounter(out ulong queued, out ulong running)
         {

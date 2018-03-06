@@ -20,19 +20,20 @@ namespace find
                 EnumDirsParallel parallelEnumerator = EnumDirsParallel.Start(dir, enumOpts, CrtlCEvent, countdown, ref stats, maxThreads);
             }
 
+            bool showMatching = enumOpts.matchFilename != null;
             while ( ! countdown.Wait(1000) )
             {
                 if ( CrtlCEvent.WaitOne(0) )
                 {
                     break;
                 }
-                PrintProgress(ProgressHandler, stats);
+                PrintProgress(ProgressHandler, stats, showMatching);
             }
-            PrintProgress(ProgressHandler, stats);
+            PrintProgress(ProgressHandler, stats, showMatching);
 
             return stats;
         }
-        private static void PrintProgress(Action<string> ProgressHandler, Stats stats)
+        private static void PrintProgress(Action<string> ProgressHandler, Stats stats, bool showMatching)
         {
             if ( ProgressHandler == null)
             {
@@ -41,9 +42,13 @@ namespace find
 
             Process currProc = System.Diagnostics.Process.GetCurrentProcess();
 
+            string filesLine = showMatching ?
+               $" | files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+             : $" | files seen: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)})";
+
             ProgressHandler(
                   $"Enumerations enqueued/running: {stats.Enqueued}/{stats.EnumerationsRunning}"
-                + $" | files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+                + filesLine
                 + $" | dirs seen: {stats.AllDirs}"
                 + $" | GC/VirtMem/Threads"
                 + $" {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"

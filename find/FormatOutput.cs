@@ -41,11 +41,11 @@ namespace find
                 writer.WriteLine("{0}\t{1,12}\t{2}\t{3}"
                     , LastWriteTime
                     , Spi.IO.DirEntry.GetFileSize(find_data)
-                    , GetAttributes(find_data.dwFileAttributes)
+                    , GetAttributesField(find_data.dwFileAttributes)
                     , GetFullname(rootDir, dir, find_data.cFileName));
             }
         }
-        static string GetAttributes(uint dwFileAttributes)
+        static string GetAttributesField(uint dwFileAttributes)
         {
             StringBuilder sb = new StringBuilder(5);
             sb.Length = 5;
