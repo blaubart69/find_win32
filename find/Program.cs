@@ -144,7 +144,7 @@ namespace find
                         stats = RunSequential.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
                     }
 
-                    WriteStats(stats, opts.printLongestFilename);
+                    WriteStats(stats, opts.printLongestFilename, printMatches: enumOpts.matchFilename != null );
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
@@ -162,16 +162,29 @@ namespace find
             return 0;
         }
 
-        static void WriteStats(Stats stats, bool printLongestFilename)
+        static void WriteStats(Stats stats, bool printLongestFilename, bool printMatches)
         {
-            Console.Error.WriteLine(
-                   "\n"
-                +  "dirs           {0,10}\n" 
-                +  "files          {1,10} ({2})\n"
-                +  "files matched  {3,10} ({4})",
-                    stats.AllDirs, 
-                    stats.AllFiles,     Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
-                    stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+            if (printMatches)
+            {
+                Console.Error.WriteLine(
+                       "\n"
+                    + "dirs           {0,10}\n"
+                    + "files          {1,10} ({2})\n"
+                    + "files matched  {3,10} ({4})",
+                        stats.AllDirs,
+                        stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
+                        stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+            }
+            else
+            {
+                Console.Error.WriteLine(
+                       "\n"
+                    + "dirs           {0,10}\n"
+                    + "files          {1,10} ({2})\n",
+                        stats.AllDirs,
+                        stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes));
+            }
+
             if ( printLongestFilename)
             {
                 Console.Error.WriteLine($"Longest filename len:  {stats.LongestFilenameLength}");
