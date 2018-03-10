@@ -43,13 +43,13 @@ namespace find
             Process currProc = System.Diagnostics.Process.GetCurrentProcess();
 
             string filesLine = showMatching ?
-               $" | files seen/matched: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
-             : $" | files seen: {stats.AllFiles} ({Misc.GetPrettyFilesize(stats.AllBytes)})";
+               $" | files seen/matched: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles:N0} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+             : $" | files seen: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)})";
 
             ProgressHandler(
-                  $"Enumerations enqueued/running: {stats.Enqueued}/{stats.EnumerationsRunning}"
+                  $"Enumerations enqueued/running: {stats.Enqueued:N0}/{stats.EnumerationsRunning}"
                 + filesLine
-                + $" | dirs seen: {stats.AllDirs}"
+                + $" | dirs seen: {stats.AllDirs:N0}"
                 + $" | GC/VirtMem/Threads"
                 + $" {Misc.GetPrettyFilesize(GC.GetTotalMemory(forceFullCollection: false))}"
                 + $"/{Misc.GetPrettyFilesize(currProc.VirtualMemorySize64)}"

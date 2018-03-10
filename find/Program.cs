@@ -168,9 +168,9 @@ namespace find
             {
                 Console.Error.WriteLine(
                        "\n"
-                    + "dirs           {0,10}\n"
-                    + "files          {1,10} ({2})\n"
-                    + "files matched  {3,10} ({4})",
+                    + "dirs           {0,10:N0}\n"
+                    + "files          {1,10:N0} ({2})\n"
+                    + "files matched  {3,10:N0} ({4})",
                         stats.AllDirs,
                         stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
                         stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
@@ -179,8 +179,8 @@ namespace find
             {
                 Console.Error.WriteLine(
                        "\n"
-                    + "dirs           {0,10}\n"
-                    + "files          {1,10} ({2})\n",
+                    + "dirs           {0,10:N0}\n"
+                    + "files          {1,10:N0} ({2})\n",
                         stats.AllDirs,
                         stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes));
             }
@@ -215,7 +215,7 @@ namespace find
                 { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
-                { "t|tsv",      "write tab separated out file",             v => opts.tsv = ( v != null) },
+                { "t|tsv",      "write tab separated find_data",            v => opts.tsv = ( v != null) },
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
                 { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
                 { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
