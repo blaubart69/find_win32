@@ -211,58 +211,67 @@ namespace find
                 {
                     continue;
                 }
-                
-                if (Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
-                {
-                    Interlocked.Increment(ref _stats.AllDirs);
 
-                    if (WalkIntoDir(ref find_data, _opts.followJunctions, currDepth, _opts.maxDepth))
-                    {
-                        QueueOneDirForEnumeration(
-                            dirSinceRootDir: dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName), 
-                            currDepth: currDepth);
-                    }
-                }
-                else
-                {
-                    long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
-                    Interlocked.Add      (ref _stats.AllBytes, FileSize);
-                    Interlocked.Increment(ref _stats.AllFiles);
-
-                    if (_opts.lookForLongestFilename)
-                    {
-                        int currLength = _rootDirname.Length + 1
-                                            + (String.IsNullOrEmpty(dirNameSinceRootDir) ? 0 : dirNameSinceRootDir.Length + 1)
-                                            + find_data.cFileName.Length;
-                        if (currLength > _stats.LongestFilenameLength)
-                        {
-                            _stats.LongestFilenameLength = currLength;
-                            _stats.LongestFilename = Path.Combine(_rootDirname, dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName));
-                        }
-                    }
-                }
-
-                bool ShouldEmit =
-                    (_opts.matchFilename != null && _opts.matchFilename(find_data.cFileName))
-                ||  (_opts.matchFilename == null);
-
-                // TODO: when matching IS NULL
-                if (ShouldEmit)
-                {
-                    long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
-                    Interlocked.Increment(ref _stats.MatchedFiles);
-                    Interlocked.Add      (ref _stats.MatchedBytes, FileSize);
-
-                    if ( (_opts.emit == EMIT.BOTH)
-                        || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
-                        || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
-                    {
-                        _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, ref find_data);
-                    }
-                }
+                ProcessFindData(dirNameSinceRootDir, currDepth, ref find_data);
+                EmitFindData(dirNameSinceRootDir, ref find_data);
             }
             while (Win32.FindNextFile(SearchHandle, out find_data));
         }
+        private void EmitFindData(string dirNameSinceRootDir, ref Win32.WIN32_FIND_DATA find_data)
+        {
+            bool ShouldEmit =
+                                (_opts.matchFilename != null && _opts.matchFilename(find_data.cFileName))
+                            || (_opts.matchFilename == null);
+
+            // TODO: when matching IS NULL
+            if (ShouldEmit)
+            {
+                long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
+                Interlocked.Increment(ref _stats.MatchedFiles);
+                Interlocked.Add(ref _stats.MatchedBytes, FileSize);
+
+                if ((_opts.emit == EMIT.BOTH)
+                    || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
+                    || (_opts.emit == EMIT.DIRS && Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
+                {
+                    _opts.printHandler?.Invoke(this._rootDirname, dirNameSinceRootDir, ref find_data);
+                }
+            }
+        }
+
+        private void ProcessFindData(string dirNameSinceRootDir, int currDepth, ref Win32.WIN32_FIND_DATA find_data)
+        {
+            if (Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
+            {
+                Interlocked.Increment(ref _stats.AllDirs);
+
+                if (WalkIntoDir(ref find_data, _opts.followJunctions, currDepth, _opts.maxDepth))
+                {
+                    QueueOneDirForEnumeration(
+                        dirSinceRootDir: dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName),
+                        currDepth: currDepth);
+                }
+            }
+            else
+            {
+                long FileSize = (long)Misc.TwoUIntsToULong(find_data.nFileSizeHigh, find_data.nFileSizeLow);
+                Interlocked.Add(ref _stats.AllBytes, FileSize);
+                Interlocked.Increment(ref _stats.AllFiles);
+
+                if (_opts.lookForLongestFilename)
+                {
+                    int currLength = _rootDirname.Length + 1
+                                        + (String.IsNullOrEmpty(dirNameSinceRootDir) ? 0 : dirNameSinceRootDir.Length + 1)
+                                        + find_data.cFileName.Length;
+                    if (currLength > _stats.LongestFilenameLength)
+                    {
+                        _stats.LongestFilenameLength = currLength;
+                        _stats.LongestFilename = Path.Combine(_rootDirname, dirNameSinceRootDir == null ? find_data.cFileName : System.IO.Path.Combine(dirNameSinceRootDir, find_data.cFileName));
+                    }
+                }
+            }
+        }
+
         private void QueueOneDirForEnumeration(string dirSinceRootDir, int currDepth)
         {
             Interlocked.Increment(ref _EnumerationsQueued);
