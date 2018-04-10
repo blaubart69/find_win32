@@ -70,12 +70,6 @@ namespace find
             enumerator._internal_Start();
             return enumerator;
         }
-        public static EnumDirsParallel Start(string RootDir, IEnumerable<string> relativeDirs, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats, int maxThreads)
-        {
-            var enumerator = new EnumDirsParallel(RootDir, opts, CtrlCEvent, CountdownLatch, ref stats, maxThreads);
-            enumerator._internal_Start(relativeDirs);
-            return enumerator;
-        }
         private void _internal_Start()
         {
             //
@@ -86,29 +80,6 @@ namespace find
             try
             {
                 QueueOneDirForEnumeration(dirSinceRootDir: null, currDepth: -1);
-            }
-            finally
-            {
-                //
-                // ... THAT DECREMENTS.
-                //
-                DecrementEnumerationQueueCountAndSetFinishedIfZero();
-            }
-        }
-        private void _internal_Start(IEnumerable<string> relativeDirs)
-        {
-            //
-            // THIS INCREMENTS ARE FOR ...
-            //
-            _EnumerationsQueued = 1;
-            Interlocked.Increment(ref _stats.Enqueued);
-
-            try
-            {
-                foreach (string relativeDir in relativeDirs)
-                {
-                    QueueOneDirForEnumeration(dirSinceRootDir: relativeDir, currDepth: -1);
-                }
             }
             finally
             {
@@ -327,5 +298,36 @@ namespace find
             return enterDir;
 
         }
+        /*
+        public static EnumDirsParallel Start(string RootDir, IEnumerable<string> relativeDirs, EnumOptions opts, ManualResetEvent CtrlCEvent, Spi.CountdownLatch CountdownLatch, ref Stats stats, int maxThreads)
+        {
+            var enumerator = new EnumDirsParallel(RootDir, opts, CtrlCEvent, CountdownLatch, ref stats, maxThreads);
+            enumerator._internal_Start(relativeDirs);
+            return enumerator;
+        }
+        private void _internal_Start(IEnumerable<string> relativeDirs)
+        {
+            //
+            // THIS INCREMENTS ARE FOR ...
+            //
+            _EnumerationsQueued = 1;
+            Interlocked.Increment(ref _stats.Enqueued);
+
+            try
+            {
+                foreach (string relativeDir in relativeDirs)
+                {
+                    QueueOneDirForEnumeration(dirSinceRootDir: relativeDir, currDepth: -1);
+                }
+            }
+            finally
+            {
+                //
+                // ... THAT DECREMENTS.
+                //
+                DecrementEnumerationQueueCountAndSetFinishedIfZero();
+            }
+        }
+        */
     }
 }
