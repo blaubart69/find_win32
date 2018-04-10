@@ -135,6 +135,17 @@ namespace find
         {
             try
             {
+                RunWorkitemLoop();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"{ex.Message}\n{ex.StackTrace}");
+            }
+        }
+        private void RunWorkitemLoop()
+        {
+            try
+            {
                 Interlocked.Increment(ref _EnumerationsRunning);
                 Interlocked.Increment(ref _stats.EnumerationsRunning);
 
@@ -155,16 +166,7 @@ namespace find
             }
             catch (Exception ex)
             {
-                try
-                {
-                    _opts.errorHandler?.Invoke(99,$"Exception caught (ThreadEnumDir): {ex.Message}\n{ex.StackTrace}");
-                }
-                catch (Exception ex2)
-                {
-                    Console.Error.WriteLine("Exception writing exception to ErrorHandler. Bad.");
-                    Console.Error.WriteLine($"First exception: {ex.Message}\n{ex.StackTrace}");
-                    Console.Error.WriteLine($"Second exception: {ex2.Message}\n{ex2.StackTrace}");
-                }
+                _opts.errorHandler?.Invoke(99, $"Exception caught (RunWorkitemLoop): {ex.Message}\n{ex.StackTrace}");
             }
             finally
             {
