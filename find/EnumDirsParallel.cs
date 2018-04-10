@@ -45,12 +45,11 @@ namespace find
         readonly EnumOptions _opts;
         readonly ManualResetEvent _CtrlCEvent;
         readonly Spi.CountdownLatch _countdownLatch;
-        Stats _stats;
-
         readonly Queue<ParallelCtx> _workItems;
-        int _ThreadpoolUserItemsEnqueued;
-        int _maxThreads;
+        readonly int _maxThreads;
 
+        Stats _stats;
+        int  _ThreadpoolUserItemsEnqueued;
         long _EnumerationsQueued;
         long _EnumerationsRunning;
 

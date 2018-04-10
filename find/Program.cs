@@ -25,7 +25,8 @@ namespace find
     class Opts
     {
         public IEnumerable<string> Dirs;
-        public string Pattern;
+        public string RegexPattern;
+        public bool RegexCaseInsensitive = false;
         public string OutFilename;
         public bool show_help;
         public bool progress;
@@ -94,7 +95,6 @@ namespace find
                     }
                     catch
                     {
-                        //ErrWriter.WriteException(ex);
                         Console.Error.WriteLine("could not set SE_BACKUP_PRIVILEGE");
                     }
 
@@ -110,9 +110,10 @@ namespace find
 
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
                     Predicate<string> MatchHandler = null;
-                    if ( ! String.IsNullOrEmpty(opts.Pattern) )
+                    if ( ! String.IsNullOrEmpty(opts.RegexPattern) )
                     {
-                        MatchHandler = (string filename) => Regex.IsMatch(filename, opts.Pattern);
+                        RegexOptions rexOpt = opts.RegexCaseInsensitive ? RegexOptions.IgnoreCase : RegexOptions.None;
+                        MatchHandler = (string filename) => Regex.IsMatch(filename, opts.RegexPattern, rexOpt);
                     }
                     PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
@@ -206,7 +207,8 @@ namespace find
             Opts opts = new Opts();
             string emit = null;
             var p = new Mono.Options.OptionSet() {
-                { "r|rname=",   "regex applied to the filename",            v => opts.Pattern = v },
+                { "r|rname=",   "regex applied to the filename",                            v =>   opts.RegexPattern = v },
+                { "i|riname=",  "regex applied to the filename - case insensitive",         v => { opts.RegexPattern = v; opts.RegexCaseInsensitive = true; } },
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
                 { "d|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
@@ -226,9 +228,9 @@ namespace find
             {
                 opts.Dirs = p.Parse(args);
 
-                if (!String.IsNullOrEmpty(opts.Pattern))
+                if (!String.IsNullOrEmpty(opts.RegexPattern))
                 {
-                    Console.Error.WriteLine("pattern parsed for rname [{0}]", opts.Pattern);
+                    Console.Error.WriteLine("pattern parsed for rname [{0}]", opts.RegexPattern);
                 }
                 if (!String.IsNullOrEmpty(opts.FormatString))
                 {
@@ -261,10 +263,6 @@ namespace find
                     else if (emit.StartsWith("B"))
                     { 
                         opts.emitEntries = EMIT.BOTH;
-                    }
-                    else
-                    {
-                        opts.emitEntries = EMIT.FILES;
                     }
                 }
             }
