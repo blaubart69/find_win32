@@ -62,14 +62,21 @@ namespace find
 
                 new Thread(new ThreadStart(() =>
                 {
-                    while (true)
+                    try
                     {
-                        if (Console.ReadKey().KeyChar == 'q')
+                        while (true)
                         {
-                            Console.Error.WriteLine("going down...");
-                            CrtlCEvent.Set();
-                            break;
+                            if (Console.Read() == 'q')
+                            {
+                                Console.Error.WriteLine("going down...");
+                                CrtlCEvent.Set();
+                                break;
+                            }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"something is wrong in the thread waiting for 'q' to be pressed.\n[{ex.Message}]\n{ex.StackTrace}");
                     }
                 }))
                 { IsBackground = true }.Start();

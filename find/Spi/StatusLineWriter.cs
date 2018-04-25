@@ -10,57 +10,50 @@ namespace Spi
     {
         private DateTime LastWrite = new DateTime(0);
         private int PrevTextLen = -1;
+        private bool _STATE_Console_available = true;
 
         private readonly TextWriter tw = Console.Error;
         private readonly TimeSpan TimeSpanForWriting = new TimeSpan(hours: 0, minutes: 0, seconds: 1);
 
-        private void _internal_WriteSimple(string Text)
-        {
-            if (Text.Length < PrevTextLen)
-            {
-                string BlanksToDelete = new string(' ', PrevTextLen - Text.Length);
-                tw.Write("{0}{1}\r", Text, BlanksToDelete);
-            }
-            else
-            {
-                tw.Write("{0}\r", Text);
-            }
-            PrevTextLen = Text.Length;
-        }
-        public void WriteSimple(string Text)
-        {
-            if (!HasTimespanPassed(this.TimeSpanForWriting))
-            {
-                return;
-            }
-            _internal_WriteSimple(Text);
-        }
         public void WriteWithDots(string Text)
         {
             if ( ! HasTimespanPassed(this.TimeSpanForWriting) )
             {
                 return;
             }
-
-            const string Dots = "...";
-
-            if (Text.Length > Console.WindowWidth)
+            _internal_WriteSimple(GetDottedText(Text));
+        }
+        private string GetDottedText(string Text)
+        {
+            if ( ! _STATE_Console_available )
             {
-                int LenLeftPart = (Console.WindowWidth - Dots.Length) / 2;
-                int LenRightPart = Console.WindowWidth - Dots.Length - LenLeftPart;
-
-                tw.Write("{0}{1}{2}\r",
-                    Text.Substring(0, LenLeftPart),
-                    Dots,
-                    Text.Substring(Text.Length - LenRightPart, LenRightPart)
-                    );
-            }
-            else
-            {
-                _internal_WriteSimple(Text);
+                return Text;
             }
 
-            PrevTextLen = Text.Length;
+            string formattedText = String.Empty;
+            try
+            {
+                const string Dots = "...";
+                if (Text.Length > Console.WindowWidth)
+                {
+                    int LenLeftPart = (Console.WindowWidth - Dots.Length) / 2;
+                    int LenRightPart = Console.WindowWidth - Dots.Length - LenLeftPart;
+
+                    formattedText = String.Format("{0}{1}{2}",
+                        Text.Substring(0, LenLeftPart),
+                        Dots,
+                        Text.Substring(Text.Length - LenRightPart, LenRightPart)
+                        );
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Could not format text to console. Seems Console is redirected. printing plain text. [{ex.Message}]");
+                formattedText = Text;
+                _STATE_Console_available = false;
+            }
+
+            return formattedText;
         }
         private bool HasTimespanPassed(TimeSpan tsMustHavePassed)
         {
@@ -75,5 +68,19 @@ namespace Spi
 
             return hasPassed;
         }
+        private void _internal_WriteSimple(string Text)
+        {
+            if (Text.Length < PrevTextLen)
+            {
+                string BlanksToDelete = new string(' ', PrevTextLen - Text.Length);
+                tw.Write("{0}{1}\r", Text, BlanksToDelete);
+            }
+            else
+            {
+                tw.Write("{0}\r", Text);
+            }
+            PrevTextLen = Text.Length;
+        }
+
     }
 }
