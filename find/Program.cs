@@ -175,9 +175,9 @@ namespace find
             {
                 Console.Error.WriteLine(
                        "\n"
-                    + "dirs           {0,10}\n"
-                    + "files          {1,10} ({2})\n"
-                    + "files matched  {3,10} ({4})",
+                    + "dirs           {0,10:N0}\n"
+                    + "files          {1,10:N0} ({2})\n"
+                    + "files matched  {3,10:N0} ({4})",
                         stats.AllDirs,
                         stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
                         stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
@@ -186,8 +186,8 @@ namespace find
             {
                 Console.Error.WriteLine(
                        "\n"
-                    + "dirs           {0,10}\n"
-                    + "files          {1,10} ({2})\n",
+                    + "dirs           {0,10:N0}\n"
+                    + "files          {1,10:N0} ({2})\n",
                         stats.AllDirs,
                         stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes));
             }
