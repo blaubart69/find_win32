@@ -66,7 +66,7 @@ namespace find
                     {
                         while (true)
                         {
-                            if (Console.Read() == 'q')
+                            if (Console.ReadKey().KeyChar == 'q')
                             {
                                 Console.Error.WriteLine("going down...");
                                 CrtlCEvent.Set();
@@ -76,7 +76,7 @@ namespace find
                     }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine($"something is wrong in the thread waiting for 'q' to be pressed.\n[{ex.Message}]\n{ex.StackTrace}");
+                        Console.Error.WriteLine($"something is wrong in the thread waiting for 'q' to be pressed.\n[{ex.Message}]");
                     }
                 }))
                 { IsBackground = true }.Start();
