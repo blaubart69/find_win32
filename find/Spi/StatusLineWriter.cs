@@ -30,7 +30,7 @@ namespace Spi
                 return Text;
             }
 
-            string formattedText = String.Empty;
+            string formattedText = Text;
             try
             {
                 const string Dots = "...";
