@@ -74,8 +74,8 @@ namespace find
             //
             // THIS INCREMENTS ARE FOR ...
             //
-            _EnumerationsQueued = 1;
-            Interlocked.Increment(ref _stats.Enqueued);
+            //_EnumerationsQueued = 1;
+            //Interlocked.Increment(ref _stats.Enqueued);
             try
             {
                 QueueOneDirForEnumeration(dirSinceRootDir: null, currDepth: -1);
@@ -85,7 +85,7 @@ namespace find
                 //
                 // ... THAT DECREMENTS.
                 //
-                DecrementEnumerationQueueCountAndSetFinishedIfZero();
+                //DecrementEnumerationQueueCountAndSetFinishedIfZero();
             }
         }
         private void DecrementEnumerationQueueCountAndSetFinishedIfZero()
@@ -114,6 +114,8 @@ namespace find
         }
         private void RunWorkitemLoop()
         {
+            bool IamTheLastOne = false;
+
             try
             {
                 Interlocked.Increment(ref _EnumerationsRunning);
@@ -130,8 +132,16 @@ namespace find
                         }
                         ctx = _workItems.Dequeue();
                     }
-                    EnumerateDirFirst(ctx.dirToSearchSinceRootDir, ctx.depth);
-                    DecrementEnumerationQueueCountAndSetFinishedIfZero();
+
+                    Enumerate(ctx.dirToSearchSinceRootDir, ctx.depth);
+
+                    Interlocked.Decrement(ref _stats.Enqueued);
+                    if (Interlocked.Decrement(ref _EnumerationsQueued) == 0)
+                    {
+                        // I'm the last. Enumerations have finished
+                        //_countdownLatch.Signal();
+                        IamTheLastOne = true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -143,9 +153,14 @@ namespace find
                 Interlocked.Decrement(ref _EnumerationsRunning);
                 Interlocked.Decrement(ref _stats.EnumerationsRunning);
                 Interlocked.Decrement(ref _ThreadpoolUserItemsEnqueued);
+
+                if (IamTheLastOne)
+                {
+                    _countdownLatch.Signal();
+                }
             }
         }
-        private void EnumerateDirFirst(string dirToSearchSinceRootDir, int depth)
+        private void Enumerate(string dirToSearchSinceRootDir, int depth)
         {
             string dirToEnumerate;
             if (String.IsNullOrEmpty(dirToSearchSinceRootDir))

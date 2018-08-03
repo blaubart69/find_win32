@@ -46,8 +46,11 @@ namespace find
                $" | files seen/matched: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles:N0} ({Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes)})"
              : $" | files seen: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)})";
 
+            long enqueued = Interlocked.Read(ref stats.Enqueued);
+            long running = Interlocked.Read(ref stats.EnumerationsRunning);
+
             ProgressHandler(
-                  $"Enumerations enqueued/running: {stats.Enqueued:N0}/{stats.EnumerationsRunning}"
+                  $"Enumerations enqueued/running: {enqueued:N0}/{running}"
                 + filesLine
                 + $" | dirs seen: {stats.AllDirs:N0}"
                 + $" | GC/VirtMem/Threads"
