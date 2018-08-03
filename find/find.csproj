@@ -8,8 +8,8 @@
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>find</RootNamespace>
-    <AssemblyName>find</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <AssemblyName>findpNET</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -41,16 +41,11 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EnumDir.cs" />
     <Compile Include="FormatOutput.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="EnumDirsParallel.cs" />
     <Compile Include="RunParallel.cs" />
-    <Compile Include="RunSequential.cs" />
     <Compile Include="Spi\ConsoleAndFileWriter.cs" />
-    <Compile Include="Spi\CountdownLatch.cs" />
-    <Compile Include="Spi\IO\Directory.cs" />
-    <Compile Include="Spi\IO\DirEntry.cs" />
     <Compile Include="Spi\IO\Long.cs" />
     <Compile Include="Spi\IO\Misc.cs" />
     <Compile Include="Program.cs" />
@@ -58,11 +53,9 @@
     <Compile Include="Spi\Native\Privilegien.cs" />
     <Compile Include="Spi\Native\SafeFindHandle.cs" />
     <Compile Include="Spi\Native\Win32.cs" />
+    <Compile Include="Spi\ParallelExecutor.cs" />
     <Compile Include="Spi\StatusLineWriter.cs" />
     <Compile Include="Spi\StringTools.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

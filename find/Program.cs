@@ -6,6 +6,8 @@ using System.Threading;
 using System.Text.RegularExpressions;
 
 using Spi;
+using Spi.Native;
+using Spi.IO;
 
 namespace find
 {
@@ -34,7 +36,6 @@ namespace find
         public bool FollowJunctions = false;
         public string FilenameWithDirs;
         public int Depth = -1;
-        public bool RunParallel = true;
         public bool Sum = false;
         public bool tsv = false;
         public string Encoding = null;
@@ -58,7 +59,8 @@ namespace find
 
             try
             {
-                ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
+                //ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
+                CancellationTokenSource CtrlC = new CancellationTokenSource();
 
                 new Thread(new ThreadStart(() =>
                 {
@@ -69,7 +71,7 @@ namespace find
                             if (Console.ReadKey().KeyChar == 'q')
                             {
                                 Console.Error.WriteLine("going down...");
-                                CrtlCEvent.Set();
+                                CtrlC.Cancel();
                                 break;
                             }
                         }
@@ -90,25 +92,24 @@ namespace find
                 {
                     OutEncoding = System.Text.Encoding.UTF8;
                 }
+                try
+                {
+                    PrivilegienStadl.TryToSetBackupPrivilege();
+                }
+                catch
+                {
+                    Console.Error.WriteLine("could not set SE_BACKUP_PRIVILEGE");
+                }
 
                 using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(ConsoleWriter:  String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, 
                                                                 Filename:       opts.OutFilename, 
                                                                 encoding:       OutEncoding))
                 {
-                    try
-                    {
-                        Spi.Native.PrivilegienStadl.TryToSetBackupPrivilege();
-                    }
-                    catch
-                    {
-                        Console.Error.WriteLine("could not set SE_BACKUP_PRIVILEGE");
-                    }
-
                     Action<string> ProgressHandler = null;
                     if ( opts.progress )
                     {
-                        Spi.StatusLineWriter statusWriter = new StatusLineWriter();
+                        StatusLineWriter statusWriter = new StatusLineWriter();
                         ProgressHandler = (progressText) =>
                         {
                             statusWriter.WriteWithDots(progressText);
@@ -125,11 +126,9 @@ namespace find
                     PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
                     {
-                        MatchedEntryWriter = (string rootDir, string dir, ref Spi.Native.Win32.WIN32_FIND_DATA find_data) => 
+                        MatchedEntryWriter = (string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data) => 
                         FormatOutput.PrintEntry(rootDir, dir, ref find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
                     }
-
-                    opts.Dirs = opts.Dirs.Select(d => Spi.IO.Long.GetLongFilenameNotation(d));
 
                     EnumOptions enumOpts = new EnumOptions()
                     {
@@ -143,14 +142,8 @@ namespace find
                     };
 
                     Stats stats;
-                    if (opts.RunParallel)
-                    {
-                        stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent, opts.maxThreads);
-                    }
-                    else
-                    {
-                        stats = RunSequential.Run(opts.Dirs, enumOpts, ProgressHandler, CrtlCEvent);
-                    }
+                    opts.Dirs = opts.Dirs.Select(d => Long.GetLongFilenameNotation(d));
+                    stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CtrlC.Token, opts.maxThreads);
 
                     WriteStats(stats, opts.printLongestFilename, printMatches: enumOpts.matchFilename != null );
                     if (ErrWriter.hasDataWritten())
@@ -180,8 +173,8 @@ namespace find
                     + "files          {1,10:N0} ({2})\n"
                     + "files matched  {3,10:N0} ({4})",
                         stats.AllDirs,
-                        stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes),
-                        stats.MatchedFiles, Spi.IO.Misc.GetPrettyFilesize(stats.MatchedBytes));
+                        stats.AllFiles, Misc.GetPrettyFilesize(stats.AllBytes),
+                        stats.MatchedFiles, Misc.GetPrettyFilesize(stats.MatchedBytes));
             }
             else
             {
@@ -190,7 +183,7 @@ namespace find
                     + "dirs           {0,10:N0}\n"
                     + "files          {1,10:N0} ({2})\n",
                         stats.AllDirs,
-                        stats.AllFiles, Spi.IO.Misc.GetPrettyFilesize(stats.AllBytes));
+                        stats.AllFiles, Misc.GetPrettyFilesize(stats.AllBytes));
             }
 
             if ( printLongestFilename)
@@ -222,7 +215,6 @@ namespace find
                 { "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
                 { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
-                { "q|sequential", "run single-threaded",                    v => opts.RunParallel = !( v != null) },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
                 { "t|tsv",      "write tab separated find_data",            v => opts.tsv = ( v != null) },
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
@@ -255,7 +247,7 @@ namespace find
                 }
                 else if (opts.Dirs.Count() == 0)
                 {
-                    opts.Dirs = new string[] { Directory.GetCurrentDirectory() };
+                    opts.Dirs = new string[] { System.IO.Directory.GetCurrentDirectory() };
                 }
                 if ( !String.IsNullOrEmpty(emit) )
                 {

@@ -18,7 +18,7 @@ namespace TestFind
         {
             Directory.CreateDirectory(BaseDir);
         }
-
+        /*
         [TestMethod]
         public void FindOneFileInADir()
         {
@@ -134,5 +134,6 @@ namespace TestFind
 
             Assert.AreEqual(MaxNTFSTime, found.LastWriteTimeUtcLong);
         }
+        */
     }
 }
