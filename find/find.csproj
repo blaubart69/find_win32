@@ -55,7 +55,6 @@
     <Compile Include="Spi\Native\Win32.cs" />
     <Compile Include="Spi\ParallelExecutor.cs" />
     <Compile Include="Spi\StatusLineWriter.cs" />
-    <Compile Include="Spi\StringTools.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

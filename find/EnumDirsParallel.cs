@@ -67,7 +67,7 @@ namespace find
                 , maxThreads: maxThreads
                 , ct: CtrlCEvent);
 
-            _executor.Enqueue(new DirToEnum(null,0) );
+            _executor.Enqueue(new DirToEnum(String.Empty,0) );
         }
         private void ThreadMethod(DirToEnum item, Spi.ParallelExecutor<DirToEnum, object, StringBuilder> executor, object ctx, ref StringBuilder tlsBuilder)
         {
@@ -108,7 +108,17 @@ namespace find
                 }
 
                 ProcessFindData(baseDir, currDepth, ref find_data);
-                EmitFindData(baseDir, ref find_data);
+                // -----
+                if (_opts.lookForLongestFilename)
+                {
+                    HandleLongestFilename(baseDir, find_data.cFileName);
+                }
+                // -----
+                if (    (_opts.matchFilename == null)
+                     || (_opts.matchFilename != null && _opts.matchFilename(find_data.cFileName)) )
+                {
+                    EmitFindData(baseDir, ref find_data);
+                }
             }
             while (Win32.FindNextFile(SearchHandle, ref find_data));
         }
@@ -118,9 +128,9 @@ namespace find
             if (Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
             {
                 Interlocked.Increment(ref _stats.AllDirs);
-                string NewDirToEnqueue = baseDir == null ? find_data.cFileName : System.IO.Path.Combine(baseDir, find_data.cFileName);
                 if (WalkIntoDir(ref find_data, _opts.followJunctions, currDepth, _opts.maxDepth))
                 {
+                    string NewDirToEnqueue = System.IO.Path.Combine(baseDir, find_data.cFileName);
                     _executor.Enqueue(new DirToEnum(NewDirToEnqueue, currDepth + 1));
                 }
             }
@@ -128,34 +138,20 @@ namespace find
             {
                 Interlocked.Add(ref _stats.AllBytes, (long)find_data.Filesize);
                 Interlocked.Increment(ref _stats.AllFiles);
-
-                if (_opts.lookForLongestFilename)
-                {
-                    HandleLongestFilename(baseDir, find_data.cFileName);
-                }
             }
         }
         private void EmitFindData(string baseDir, ref Win32.WIN32_FIND_DATA find_data)
         {
-            bool ShouldEmit =
-                               (_opts.matchFilename != null && _opts.matchFilename(find_data.cFileName))
-                            || (_opts.matchFilename == null);
+            Interlocked.Increment(ref _stats.MatchedFiles);
+            Interlocked.Add(ref _stats.MatchedBytes, (long)find_data.Filesize);
 
-            // TODO: when matching IS NULL
-            if (ShouldEmit)
+            if ((_opts.emit == EMIT.BOTH)
+                || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
+                || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
             {
-                Interlocked.Increment(ref _stats.MatchedFiles);
-                Interlocked.Add(ref _stats.MatchedBytes, (long)find_data.Filesize);
-
-                if ((_opts.emit == EMIT.BOTH)
-                    || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
-                    || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
-                {
-                    _opts.printHandler?.Invoke(this._rootDirname, baseDir, ref find_data);
-                }
+                _opts.printHandler?.Invoke(this._rootDirname, baseDir, ref find_data);
             }
         }
-
         private void HandleLongestFilename(string baseDir, string Filename)
         {
             int currLength = _rootDirname.Length + 1
@@ -164,7 +160,7 @@ namespace find
             if (currLength > _stats.LongestFilenameLength)
             {
                 _stats.LongestFilenameLength = currLength;
-                _stats.LongestFilename = Path.Combine(_rootDirname, baseDir == null ? Filename : System.IO.Path.Combine(baseDir, Filename));
+                _stats.LongestFilename = Path.Combine(_rootDirname, baseDir, Filename);
             }
         }
         private static bool WalkIntoDir(ref Win32.WIN32_FIND_DATA findData, bool FollowJunctions, int currDepth, int maxDepth)

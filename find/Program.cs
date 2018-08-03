@@ -243,7 +243,8 @@ namespace find
                         Console.Error.WriteLine("E: The file you specified with the option -d does not exist. [{0}]", opts.FilenameWithDirs);
                         return null;
                     }
-                    opts.Dirs = StringTools.TextFileByLine(opts.FilenameWithDirs);
+                    //opts.Dirs = StringTools.TextFileByLine(opts.FilenameWithDirs);
+                    opts.Dirs = File.ReadLines(opts.FilenameWithDirs);
                 }
                 else if (opts.Dirs.Count() == 0)
                 {
