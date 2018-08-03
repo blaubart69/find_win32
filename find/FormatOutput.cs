@@ -2,6 +2,8 @@
 using System.Text;
 using System.IO;
 
+using Spi;
+using Spi.IO;
 using Spi.Native;
 
 namespace find
@@ -10,7 +12,7 @@ namespace find
     {
         static readonly string[] FormatKeyWords = new string[] { "fullname", "filename" };
 
-        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, string FormatString, Spi.ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
+        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, string FormatString, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
         {
             if ( writer == null )
             {
@@ -23,11 +25,11 @@ namespace find
 
                 writer.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}\t{5}"
                     , GetBasename(dir, find_data.cFileName)
-                    , Spi.IO.DirEntry.GetFileSize(find_data)
+                    , find_data.Filesize
                     , find_data.dwFileAttributes
-                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftCreationTime)
-                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastWriteTime)
-                    , Spi.IO.DirEntry.FiletimeToLong(find_data.ftLastAccessTime));
+                    , Misc.FiletimeToLong(find_data.ftCreationTime)
+                    , Misc.FiletimeToLong(find_data.ftLastWriteTime)
+                    , Misc.FiletimeToLong(find_data.ftLastAccessTime));
                     //, GetBasename(dir, find_data.cFileName));
             }
             else if (! String.IsNullOrEmpty(FormatString))
@@ -40,7 +42,7 @@ namespace find
 
                 writer.WriteLine("{0}\t{1,12}\t{2}\t{3}"
                     , LastWriteTime
-                    , Spi.IO.DirEntry.GetFileSize(find_data)
+                    , find_data.Filesize
                     , GetAttributesField(find_data.dwFileAttributes)
                     , GetFullname(rootDir, dir, find_data.cFileName));
             }
@@ -141,7 +143,7 @@ namespace find
             Win32.SYSTEMTIME universalSystemtime;
             if (!Win32.FileTimeToSystemTime(ref filetime, out universalSystemtime))
             {
-                long longFiletime = Spi.IO.Misc.TwoIntToLong(filetime.dwHighDateTime, filetime.dwLowDateTime);
+                long longFiletime = Misc.TwoIntToLong(filetime.dwHighDateTime, filetime.dwLowDateTime);
 
                 ErrorHandler?.Invoke(System.Runtime.InteropServices.Marshal.GetLastWin32Error(),
                     String.Format("error at FileTimeToSystemTime(). input parameter filetime {0:X}", longFiletime));
@@ -151,14 +153,14 @@ namespace find
             Win32.SYSTEMTIME localSystemtime;
             if (!Win32.SystemTimeToTzSpecificLocalTime(IntPtr.Zero, ref universalSystemtime, out localSystemtime))
             {
-                string UTCSystime = Spi.IO.Misc.FormatSystemtime(universalSystemtime);
+                string UTCSystime = Misc.FormatSystemtime(universalSystemtime);
 
                 ErrorHandler?.Invoke(System.Runtime.InteropServices.Marshal.GetLastWin32Error(),
                     String.Format("error at SystemTimeToTzSpecificLocalTime() for SYSTEMTIME [{0}]", UTCSystime));
                 return "(UTC) " + UTCSystime;
             }
 
-            return Spi.IO.Misc.FormatSystemtime(localSystemtime);
+            return Misc.FormatSystemtime(localSystemtime);
         }
 
     }

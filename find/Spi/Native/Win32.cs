@@ -74,14 +74,16 @@ namespace Spi.Native
             public System.Runtime.InteropServices.ComTypes.FILETIME ftCreationTime;
             public System.Runtime.InteropServices.ComTypes.FILETIME ftLastAccessTime;
             public System.Runtime.InteropServices.ComTypes.FILETIME ftLastWriteTime;
-            public uint nFileSizeHigh;
-            public uint nFileSizeLow;
+            private uint nFileSizeHigh;
+            private uint nFileSizeLow;
             public uint dwReserved0;
             public uint dwReserved1;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
             public string cFileName;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
             public string cAlternateFileName;
+
+            public ulong Filesize { get { return Spi.IO.Misc.TwoUIntsToULong(nFileSizeHigh, nFileSizeLow); } }
         }
 
         /*
@@ -89,14 +91,14 @@ namespace Spi.Native
         public static extern SafeFileHandle FindFirstFile(string lpFileName, out WIN32_FIND_DATA lpFindFileData);
         */
 
-        public static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
+        //public static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern SafeFindHandle FindFirstFile(string lpFileName, out WIN32_FIND_DATA lpFindFileData);
+        public static extern SafeFindHandle FindFirstFile(string lpFileName, ref WIN32_FIND_DATA lpFindFileData);
         //public static extern string FindFirstFile(string lpFileName, out WIN32_FIND_DATA lpFindFileData);
 
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern bool FindNextFile(SafeHandle hFindFile, out WIN32_FIND_DATA lpFindFileData);
+        public static extern bool FindNextFile(SafeHandle hFindFile, ref WIN32_FIND_DATA lpFindFileData);
 
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern bool FindClose(SafeHandle hFindFile);

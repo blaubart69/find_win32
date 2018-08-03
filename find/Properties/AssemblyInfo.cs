@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("find")]
-[assembly: AssemblyDescription("list/search files/dirs")]
+[assembly: AssemblyDescription("list directory tree")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Berni")]
 [assembly: AssemblyProduct("find")]
