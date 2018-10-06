@@ -60,7 +60,7 @@ namespace find
             _stats = stats;
 
             _executor = new Spi.ParallelExecutor<DirToEnum, object, StringBuilder>(
-                initTL: () => null
+                  initTL: null
                 , func: ThreadMethod
                 , freeTL: null
                 , context: null
