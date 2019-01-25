@@ -42,6 +42,8 @@ namespace find
         public bool printLongestFilename = false;
         public EMIT emitEntries = EMIT.BOTH;
         public int maxThreads = 32;
+        public long oldThanFiletimeUTC = 0;
+        public long newerThanFiletimeUTC = 0;
     }
     class Program
     {
@@ -115,14 +117,47 @@ namespace find
                             statusWriter.WriteWithDots(progressText);
                         };
                     }
-
+                    //
+                    //
+                    //
                     void ErrorHandler(int rc, string ErrDir) => ErrWriter.WriteLine("{0}\t{1}", rc, ErrDir);
+                    //
+                    // filename match
+                    //
                     Predicate<string> MatchHandler = null;
                     if ( ! String.IsNullOrEmpty(opts.RegexPattern) )
                     {
                         RegexOptions rexOpt = opts.RegexCaseInsensitive ? RegexOptions.IgnoreCase : RegexOptions.None;
                         MatchHandler = (string filename) => Regex.IsMatch(filename, opts.RegexPattern, rexOpt);
                     }
+                    //
+                    // filetime modified match
+                    //
+                    Predicate<long> matchFiletimeHandler = null;
+                    if (opts.oldThanFiletimeUTC > 0 || opts.newerThanFiletimeUTC > 0)
+                    {
+                        matchFiletimeHandler = (long LastWriteFiletime) =>
+                        {
+                            bool matched = false;
+
+                            if ( opts.oldThanFiletimeUTC > 0 )
+                            {
+                                if ( LastWriteFiletime < opts.oldThanFiletimeUTC )
+                                {
+                                    matched = true;
+                                }
+                            }
+                            else if ( opts.newerThanFiletimeUTC > 0 )
+                            {
+                                if ( LastWriteFiletime > opts.newerThanFiletimeUTC )
+                                {
+                                    matched = true;
+                                }
+                            }
+                            return matched;
+                        };
+                    }
+
                     PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
                     {
@@ -135,6 +170,7 @@ namespace find
                         errorHandler = ErrorHandler,
                         printHandler = MatchedEntryWriter,
                         matchFilename = MatchHandler,
+                        matchFiletime = matchFiletimeHandler,
                         followJunctions = opts.FollowJunctions,
                         maxDepth = opts.Depth,
                         lookForLongestFilename = opts.printLongestFilename,
@@ -205,7 +241,11 @@ namespace find
         static Opts GetOpts(string[] args)
         {
             Opts opts = new Opts();
+
             string emit = null;
+            int daysOlder = 0;
+            int daysNewer = 0;
+
             var p = new Mono.Options.OptionSet() {
                 { "r|rname=",   "regex applied to the filename",                            v =>   opts.RegexPattern = v },
                 { "i|riname=",  "regex applied to the filename - case insensitive",         v => { opts.RegexPattern = v; opts.RegexCaseInsensitive = true; } },
@@ -220,6 +260,8 @@ namespace find
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
                 { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
                 { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
+                { "dayolder=",  "entries older than x days",                v => daysOlder = Convert.ToInt32(v) },
+                { "daynewer=",  "entries newer than x days",                v => daysNewer = Convert.ToInt32(v) },
                 { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
@@ -264,6 +306,22 @@ namespace find
                     { 
                         opts.emitEntries = EMIT.BOTH;
                     }
+                }
+                //
+                // newer, older
+                //
+                DateTime now = DateTime.Now;
+                if ( daysOlder > 0 )
+                {
+                    DateTime olderThen = now.Subtract(TimeSpan.FromDays((double)daysOlder));
+                    opts.oldThanFiletimeUTC = olderThen.ToFileTimeUtc();
+                    Console.Error.WriteLine($"printing entries older than {olderThen}");
+                }
+                if ( daysNewer > 0 )
+                {
+                    DateTime newerThan = now.Subtract(TimeSpan.FromDays((double)daysNewer));
+                    opts.newerThanFiletimeUTC = newerThan.ToFileTimeUtc();
+                    Console.Error.WriteLine($"printing entries newer than {newerThan}");
                 }
             }
             catch (Mono.Options.OptionException oex)

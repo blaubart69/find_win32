@@ -32,6 +32,7 @@ namespace find
         public int maxDepth;
         public bool followJunctions;
         public Predicate<string> matchFilename;
+        public Predicate<long> matchFiletime;
         public PrintFunction printHandler;
         public Action<int, string> errorHandler;
         public bool lookForLongestFilename;
@@ -149,7 +150,11 @@ namespace find
                 || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
                 || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
             {
-                _opts.printHandler?.Invoke(this._rootDirname, baseDir, ref find_data);
+                if (    _opts.matchFiletime == null 
+                    ||  _opts.matchFiletime(Misc.FiletimeToLong(find_data.ftLastWriteTime)))
+                {
+                    _opts.printHandler?.Invoke(this._rootDirname, baseDir, ref find_data);
+                }
             }
         }
         private void HandleLongestFilename(string baseDir, string Filename)
