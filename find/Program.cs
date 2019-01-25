@@ -11,6 +11,11 @@ using Spi.IO;
 
 namespace find
 {
+    public enum FiletimeSearch
+    {
+        NEWER,
+        OLDER
+    }
     public class Stats
     {
         public long AllBytes;
@@ -42,8 +47,8 @@ namespace find
         public bool printLongestFilename = false;
         public EMIT emitEntries = EMIT.BOTH;
         public int maxThreads = 32;
-        public long oldThanFiletimeUTC = 0;
-        public long newerThanFiletimeUTC = 0;
+        public long filterFiletimeUTC = 0;
+        public FiletimeSearch KindOfTimeSearch;
     }
     class Program
     {
@@ -134,22 +139,22 @@ namespace find
                     // filetime modified match
                     //
                     Predicate<long> matchFiletimeHandler = null;
-                    if (opts.oldThanFiletimeUTC > 0 || opts.newerThanFiletimeUTC > 0)
+                    if (opts.filterFiletimeUTC > 0)
                     {
                         matchFiletimeHandler = (long LastWriteFiletime) =>
                         {
                             bool matched = false;
 
-                            if ( opts.oldThanFiletimeUTC > 0 )
+                            if ( opts.KindOfTimeSearch == FiletimeSearch.OLDER )
                             {
-                                if ( LastWriteFiletime < opts.oldThanFiletimeUTC )
+                                if ( LastWriteFiletime < opts.filterFiletimeUTC )
                                 {
                                     matched = true;
                                 }
                             }
-                            else if ( opts.newerThanFiletimeUTC > 0 )
+                            else if (opts.KindOfTimeSearch == FiletimeSearch.NEWER)
                             {
-                                if ( LastWriteFiletime > opts.newerThanFiletimeUTC )
+                                if ( LastWriteFiletime > opts.filterFiletimeUTC )
                                 {
                                     matched = true;
                                 }
@@ -235,6 +240,8 @@ namespace find
             Console.WriteLine();
             Console.WriteLine("Options:");
             p.WriteOptionDescriptions(Console.Out);
+            Console.WriteLine();
+            Console.WriteLine("Timespan: [-]{ d | [d.]hh:mm[:ss[.ff]] }");
             Console.WriteLine("\nSamples:"
                 + "\n  file extension via regex match ... find.exe -r \"\\.txt$\"" );
         }
@@ -243,8 +250,7 @@ namespace find
             Opts opts = new Opts();
 
             string emit = null;
-            int daysOlder = 0;
-            int daysNewer = 0;
+            string timeExpression = null;
 
             var p = new Mono.Options.OptionSet() {
                 { "r|rname=",   "regex applied to the filename",                            v =>   opts.RegexPattern = v },
@@ -260,8 +266,7 @@ namespace find
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
                 { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
                 { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
-                { "dayolder=",  "entries older than x days",                v => daysOlder = Convert.ToInt32(v) },
-                { "daynewer=",  "entries newer than x days",                v => daysNewer = Convert.ToInt32(v) },
+                { "ts=",        "{timespan;[new|old]}",                     v => timeExpression = v },
                 { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
@@ -310,18 +315,18 @@ namespace find
                 //
                 // newer, older
                 //
-                DateTime now = DateTime.Now;
-                if ( daysOlder > 0 )
+                if ( !String.IsNullOrEmpty(timeExpression) )
                 {
-                    DateTime olderThen = now.Subtract(TimeSpan.FromDays((double)daysOlder));
-                    opts.oldThanFiletimeUTC = olderThen.ToFileTimeUtc();
-                    Console.Error.WriteLine($"printing entries older than {olderThen}");
-                }
-                if ( daysNewer > 0 )
-                {
-                    DateTime newerThan = now.Subtract(TimeSpan.FromDays((double)daysNewer));
-                    opts.newerThanFiletimeUTC = newerThan.ToFileTimeUtc();
-                    Console.Error.WriteLine($"printing entries newer than {newerThan}");
+                    if ( ParseTimespan(timeExpression, out DateTime? PointInTime, out opts.KindOfTimeSearch))
+                    {
+                        opts.filterFiletimeUTC = PointInTime.Value.ToFileTimeUtc();
+                        Console.Error.WriteLine($"showing files {opts.KindOfTimeSearch} than {PointInTime.Value}");
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine("could not parse your timefilter");
+                        return null;
+                    }
                 }
             }
             catch (Mono.Options.OptionException oex)
@@ -335,6 +340,45 @@ namespace find
                 return null;
             }
             return opts;
+        }
+        static bool ParseTimespan(string timeExpression, out DateTime? PointInTime, out FiletimeSearch TimeDirection)
+        {
+            PointInTime = null;
+            TimeDirection = FiletimeSearch.OLDER;
+
+            string[] timeAndKind = timeExpression.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            TimeSpan span;
+            if ( timeAndKind.Length == 0)
+            {
+                return false;
+            }
+            else if (timeAndKind.Length == 1)
+            {
+                TimeDirection = FiletimeSearch.OLDER;
+                span = TimeSpan.Parse(timeAndKind[0]);
+            }
+            else if (timeAndKind.Length == 2)
+            {
+                if (timeAndKind[1].StartsWith("new", StringComparison.OrdinalIgnoreCase) )
+                {
+                    TimeDirection = FiletimeSearch.NEWER;
+                }
+                else if (timeAndKind[1].StartsWith("old", StringComparison.OrdinalIgnoreCase))
+                {
+                    TimeDirection = FiletimeSearch.OLDER;
+                }
+
+                span = TimeSpan.Parse(timeAndKind[0]);
+            }
+            else
+            {
+                return false;
+            }
+
+            PointInTime = DateTime.Now.Subtract(span);
+
+            return true;
         }
     }
 }
