@@ -12,7 +12,8 @@ namespace find
     {
         static readonly string[] FormatKeyWords = new string[] { "fullname", "filename" };
 
-        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, string FormatString, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
+        //public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, string FormatString, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
+        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat, bool FullFormat, bool PrependRootDir)
         {
             if ( writer == null )
             {
@@ -32,11 +33,7 @@ namespace find
                     , Misc.FiletimeToLong(find_data.ftLastAccessTime));
                     //, GetBasename(dir, find_data.cFileName));
             }
-            else if (! String.IsNullOrEmpty(FormatString))
-            {
-                writer.WriteLine(FormatLine(FormatString, rootDir, dir, find_data));
-            }
-            else
+            else if (FullFormat)
             {
                 String LastWriteTime = FormatFiletime(find_data.ftLastWriteTime, ErrorHandler);
 
@@ -45,6 +42,14 @@ namespace find
                     , find_data.Filesize
                     , GetAttributesField(find_data.dwFileAttributes)
                     , GetFullname(rootDir, dir, find_data.cFileName));
+            }
+            else if (PrependRootDir)
+            {
+                writer.WriteLine("{0}", GetFullname(rootDir, dir, find_data.cFileName));
+            }
+            else
+            {
+                writer.WriteLine("{0}", GetBasename(dir, find_data.cFileName));
             }
         }
         static string GetAttributesField(uint dwFileAttributes)
