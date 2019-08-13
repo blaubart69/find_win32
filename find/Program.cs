@@ -37,7 +37,9 @@ namespace find
         public string OutFilename;
         public bool show_help;
         public bool progress;
-        public string FormatString;
+        //public string FormatString;
+        public bool FullFormat;
+        public bool PrependRootDir;
         public bool FollowJunctions = false;
         public string FilenameWithDirs;
         public int Depth = -1;
@@ -167,7 +169,7 @@ namespace find
                     if (! opts.Sum)
                     {
                         MatchedEntryWriter = (string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data) => 
-                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, opts.FormatString, OutWriter, ErrorHandler, opts.tsv);
+                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.tsv, opts.FullFormat, opts.PrependRootDir);
                     }
 
                     EnumOptions enumOpts = new EnumOptions()
@@ -258,7 +260,7 @@ namespace find
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
                 { "d|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
-                { "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
+                //{ "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
                 { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
@@ -267,6 +269,8 @@ namespace find
                 { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
                 { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
                 { "ts=",        "{timespan;[new|old]}",                     v => timeExpression = v },
+                { "full",       "full format",                              v => opts.FullFormat = true },
+                { "root",       "prepend root directory",                   v => opts.PrependRootDir = true },
                 { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
@@ -278,10 +282,12 @@ namespace find
                 {
                     Console.Error.WriteLine("pattern parsed for rname [{0}]", opts.RegexPattern);
                 }
+                /*
                 if (!String.IsNullOrEmpty(opts.FormatString))
                 {
                     Console.Error.WriteLine("FormatString [{0}]", opts.FormatString);
                 }
+                */
 
                 if (!String.IsNullOrEmpty(opts.FilenameWithDirs))
                 {
