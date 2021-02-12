@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Diagnostics;
-
 using Spi.IO;
 
 namespace find

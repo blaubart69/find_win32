@@ -102,9 +102,15 @@ namespace find
             if (PrependRootDir)
             {
                 sb.Append(rootDir);
+                sb.Append('\\');
             }
-            sb.Append(dir);
-            sb.Append("\\");
+            
+            if (!String.IsNullOrEmpty(dir))
+            {
+                sb.Append(dir);
+                sb.Append('\\');
+            }
+
             sb.Append(filename);
 
             if (quote)

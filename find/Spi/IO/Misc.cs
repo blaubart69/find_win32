@@ -6,62 +6,19 @@ namespace Spi.IO
 {
     public class Misc
     {
-        /*
-        public static string NiceDuration(TimeSpan ts)
-        {
-            string res;
-            if (ts.TotalHours >= 24)
-            {
-                res = String.Format("{0}d {1}h {2}m {3}s {4}ms", ts.Days, ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds);
-            }
-            else if (ts.TotalMinutes >= 60)
-            {
-                res = String.Format("{0}h {1}m {2}s {3}ms", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds);
-            }
-            else if (ts.TotalSeconds >= 60)
-            {
-                res = String.Format("{0}m {1}s {2}ms", ts.Minutes, ts.Seconds, ts.Milliseconds);
-            }
-            else if (ts.TotalMilliseconds >= 1000)
-            {
-                res = String.Format("{0}s {1}ms", ts.Seconds, ts.Milliseconds);
-            }
-            else
-            {
-                res = String.Format("{0}ms", ts.Milliseconds);
-            }
-            return res;
-        }*/
         public static string NiceDuration2(in TimeSpan duration)
         {
-            string nice = duration.Milliseconds + "ms"; ;
-
-            if (duration.Ticks >= TimeSpan.TicksPerSecond)
-            {
-                nice = duration.Seconds + "s " + nice;
-
-                if (duration.Ticks >= TimeSpan.TicksPerMinute)
-                {
-                    nice = duration.Minutes + "m " + nice;
-
-                    if (duration.Ticks >= TimeSpan.TicksPerHour)
-                    {
-                        nice = duration.Hours + "h " + nice;
-
-                        if (duration.Ticks >= TimeSpan.TicksPerDay)
-                        {
-                            nice = duration.Days + "d " + nice;
-                        }
-                    }
-                }
-            }
-
+                                                      string nice = duration.Milliseconds + "ms";
+            if (duration.Ticks >= TimeSpan.TicksPerSecond) { nice = duration.Seconds      + "s " + nice;
+            if (duration.Ticks >= TimeSpan.TicksPerMinute) { nice = duration.Minutes      + "m " + nice;
+            if (duration.Ticks >= TimeSpan.TicksPerHour)   { nice = duration.Hours        + "h " + nice;
+            if (duration.Ticks >= TimeSpan.TicksPerDay)    { nice = duration.Days         + "d " + nice; } } } }
             return nice;
         }
         public static string GetPrettyFilesize(ulong Filesize)
         {
-            StringBuilder sb = new StringBuilder(50);
-            Spi.Native.Win32.StrFormatByteSize((long)Filesize, sb, 50);
+            StringBuilder sb = new StringBuilder(32);
+            Spi.Native.Win32.StrFormatByteSize((long)Filesize, sb, 32);
             return sb.ToString();
         }
         public static string GetPrettyFilesize(long Filesize)
