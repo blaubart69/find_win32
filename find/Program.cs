@@ -29,11 +29,7 @@ namespace find
         public long MatchedBytes;
         public long AllFiles;
         public long AllDirs;
-        public long MatchedFiles;
-        public long Enqueued;
-        public long EnumerationsRunning;
-        public string LongestFilename;
-        public int LongestFilenameLength;
+        public long MatchedEntries;
     }
     
     class Opts
@@ -113,7 +109,7 @@ namespace find
                     Console.Error.WriteLine("could not set SE_BACKUP_PRIVILEGE");
                 }
 
-                using (var ErrWriter = new ConsoleAndFileWriter(Console.Error, ErrFilename))
+                using (var ErrWriter = new ConsoleAndFileWriter(null, ErrFilename))
                 using (var OutWriter = new ConsoleAndFileWriter(ConsoleWriter:  String.IsNullOrEmpty(opts.OutFilename) ? Console.Out : null, 
                                                                 Filename:       opts.OutFilename, 
                                                                 encoding:       OutEncoding))
@@ -171,8 +167,9 @@ namespace find
                     PrintFunction MatchedEntryWriter = null;
                     if (! opts.Sum)
                     {
+                        bool quoteFilename = !"\t".Equals(opts.separator);
                         MatchedEntryWriter = (string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data) => 
-                        Print.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.separator, opts.Format, opts.PrependRootDir);
+                        Print.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.separator, opts.Format, opts.PrependRootDir, quoteFilename);
                     }
 
                     EnumOptions enumOpts = new EnumOptions()
@@ -191,7 +188,7 @@ namespace find
                     DateTime start = DateTime.Now;
                     stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CtrlC.Token, opts.maxThreads);
                     TimeSpan duration = DateTime.Now - start;
-                    WriteStats(stats, printMatches: enumOpts.matchFilename != null);
+                    WriteStats(stats, printMatches: enumOpts.matchFilename != null || enumOpts.matchFiletime != null);
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
@@ -219,12 +216,12 @@ namespace find
             {
                 Console.Error.WriteLine(
                        "\n"
-                    + "dirs           {0,10:N0}\n"
-                    + "files          {1,10:N0} ({2})\n"
-                    + "files matched  {3,10:N0} ({4})",
+                    + "dirs             {0,10:N0}\n"
+                    + "files            {1,10:N0} ({2})\n"
+                    + "entries matched  {3,10:N0} ({4})",
                         stats.AllDirs,
-                        stats.AllFiles, Misc.GetPrettyFilesize(stats.AllBytes),
-                        stats.MatchedFiles, Misc.GetPrettyFilesize(stats.MatchedBytes));
+                        stats.AllFiles,     Misc.GetPrettyFilesize(stats.AllBytes),
+                        stats.MatchedEntries, Misc.GetPrettyFilesize(stats.MatchedBytes));
             }
             else
             {
@@ -324,7 +321,7 @@ namespace find
                     if ( ParseTimespan(timeExpression, out DateTime? PointInTime, out opts.KindOfTimeSearch))
                     {
                         opts.filterFiletimeUTC = PointInTime.Value.ToFileTimeUtc();
-                        Console.Error.WriteLine($"showing files {opts.KindOfTimeSearch} than {PointInTime.Value}");
+                        Console.Error.WriteLine($"showing entries {opts.KindOfTimeSearch} than {PointInTime.Value}");
                     }
                     else
                     {

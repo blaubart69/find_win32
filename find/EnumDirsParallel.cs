@@ -137,9 +137,6 @@ namespace find
         }
         private void EmitFindData(string baseDir, ref Win32.WIN32_FIND_DATA find_data)
         {
-            Interlocked.Increment(ref _stats.MatchedFiles);
-            Interlocked.Add(ref _stats.MatchedBytes, (long)find_data.Filesize);
-
             if ((_opts.emit == EMIT.BOTH)
                 || (_opts.emit == EMIT.FILES && !Misc.IsDirectoryFlagSet(find_data.dwFileAttributes))
                 || (_opts.emit == EMIT.DIRS  &&  Misc.IsDirectoryFlagSet(find_data.dwFileAttributes)))
@@ -147,6 +144,8 @@ namespace find
                 if (    _opts.matchFiletime == null 
                     ||  _opts.matchFiletime(Misc.FiletimeToLong(find_data.ftLastWriteTime)))
                 {
+                    Interlocked.Increment(ref _stats.MatchedEntries);
+                    Interlocked.Add      (ref _stats.MatchedBytes, (long)find_data.Filesize);
                     _opts.printHandler?.Invoke(this._rootDirname, baseDir, ref find_data);
                 }
             }

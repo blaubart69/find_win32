@@ -15,7 +15,7 @@ namespace find
         public static void PrintEntry(
             string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data
             , ConsoleAndFileWriter writer, Action<int, string> ErrorHandler
-            , string separator, PrintFormat format, bool PrependRootDir)
+            , string separator, PrintFormat format, bool PrependRootDir, bool quoteFilename)
         {
             if ( writer == null )
             {
@@ -30,14 +30,14 @@ namespace find
 
             if (format == PrintFormat.FILENAME_ONLY)
             {
-                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, separator, ref sb);
+                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, quoteFilename, ref sb);
             }
             else if (format == PrintFormat.LONG)
             {
                 sb.Append(FormatFiletime(find_data.ftLastWriteTime, ErrorHandler));     sb.Append(separator);
                 sb.AppendFormat("{0,12}", find_data.Filesize);                          sb.Append(separator);
                 AppendAttributes(find_data.dwFileAttributes, ref sb);                   sb.Append(separator);
-                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, separator, ref sb);
+                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, quoteFilename, ref sb);
             }
             else if (format == PrintFormat.FULL)
             {
@@ -46,7 +46,7 @@ namespace find
                 sb.Append(FormatFiletime(find_data.ftLastWriteTime,  ErrorHandler)); sb.Append(separator);
                 sb.Append(FormatFiletime(find_data.ftLastAccessTime, ErrorHandler)); sb.Append(separator);
                 sb.AppendFormat("{0,12}", find_data.Filesize);                       sb.Append(separator);
-                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, separator, ref sb);
+                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, quoteFilename, ref sb);
             }
             else if ( format == PrintFormat.MACHINE)
             {
@@ -74,7 +74,7 @@ namespace find
                     , (UInt32)find_data.ftLastAccessTime.dwHighDateTime
                     , (UInt32)find_data.ftLastAccessTime.dwLowDateTime
                     , find_data.Filesize);
-                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, separator, ref sb);
+                AppendFilename(PrependRootDir, rootDir, dir, find_data.cFileName, quoteFilename, ref sb);
             }
 
             writer.WriteLine(sb.ToString());
@@ -90,32 +90,25 @@ namespace find
             sb.Append(((dwFileAttributes & (uint)System.IO.FileAttributes.Temporary)  != 0 ) ? 'T' : '-');
 
         }
-        static void AppendFilename(bool PrependRootDir, string rootDir, string dir, string filename, string separator, ref StringBuilder sb)
+        static void AppendFilename(bool PrependRootDir, string rootDir, string dir, string filename, bool quoteFilename, ref StringBuilder sb)
         {
-            bool quote = !"\t".Equals(separator);
-            
-            if (quote)
+            if (quoteFilename)
             {
-                sb.Append("\"");
+                sb.Append('"');
             }
 
             if (PrependRootDir)
             {
-                sb.Append(rootDir);
-                sb.Append('\\');
+                sb.Append( System.IO.Path.Combine(rootDir, dir, filename) );
             }
-            
-            if (!String.IsNullOrEmpty(dir))
+            else
             {
-                sb.Append(dir);
-                sb.Append('\\');
+                sb.Append( System.IO.Path.Combine(dir, filename) );
             }
 
-            sb.Append(filename);
-
-            if (quote)
+            if (quoteFilename)
             {
-                sb.Append("\"");
+                sb.Append('"');
             }
         }
         /**

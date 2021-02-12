@@ -32,7 +32,7 @@ namespace find
             Process currProc = System.Diagnostics.Process.GetCurrentProcess();
 
             string filesLine = showMatching ?
-               $" | files seen/matched: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles:N0} ({Misc.GetPrettyFilesize(stats.MatchedBytes)})"
+               $" | files seen/matched: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedEntries:N0} ({Misc.GetPrettyFilesize(stats.MatchedBytes)})"
              : $" | files seen: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)})";
 
             ProgressHandler(
