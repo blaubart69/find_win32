@@ -13,25 +13,25 @@ namespace find
         static readonly string[] FormatKeyWords = new string[] { "fullname", "filename" };
 
         //public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, string FormatString, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat)
-        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, bool tsvFormat, bool FullFormat, bool PrependRootDir)
+        public static void PrintEntry(string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data, ConsoleAndFileWriter writer, Action<int, string> ErrorHandler, string separator, bool FullFormat, bool PrependRootDir)
         {
             if ( writer == null )
             {
                 return;
             }
 
-            if ( tsvFormat )
+            if (separator != null)
             {
                 GetFirstDirAndRest(dir, find_data.cFileName, out string baseDir, out string rest);
 
-                writer.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}\t{5}"
+                writer.WriteLine("\"{0}\"{6}{1}{6}{2}{6}{3}{6}{4}{6}{5}"
                     , GetBasename(dir, find_data.cFileName)
                     , find_data.Filesize
                     , find_data.dwFileAttributes
                     , Misc.FiletimeToLong(find_data.ftCreationTime)
                     , Misc.FiletimeToLong(find_data.ftLastWriteTime)
-                    , Misc.FiletimeToLong(find_data.ftLastAccessTime));
-                    //, GetBasename(dir, find_data.cFileName));
+                    , Misc.FiletimeToLong(find_data.ftLastAccessTime)
+                    , separator);
             }
             else if (FullFormat)
             {

@@ -57,7 +57,7 @@ namespace find.Spi
             try
             {
                 T item;
-                while ((item = _queue.Take(_cancelToken)) != default)
+                while ((item = _queue.Take(_cancelToken)) != null)
                 {
                     Interlocked.Increment(ref _running);
                     ExecFunc(item, ref threadLocalObject);

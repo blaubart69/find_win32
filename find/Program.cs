@@ -44,7 +44,7 @@ namespace find
         public string FilenameWithDirs;
         public int Depth = -1;
         public bool Sum = false;
-        public bool tsv = false;
+        public string separator = null;
         public string Encoding = null;
         public bool printLongestFilename = false;
         public EMIT emitEntries = EMIT.BOTH;
@@ -64,11 +64,8 @@ namespace find
                 return 8;
             }
 
-            //Console.WriteLine($"emit: {opts.emitEntries.ToString("g")}");
-
             try
             {
-                //ManualResetEvent CrtlCEvent = new ManualResetEvent(false);
                 CancellationTokenSource CtrlC = new CancellationTokenSource();
 
                 new Thread(new ThreadStart(() =>
@@ -169,7 +166,7 @@ namespace find
                     if (! opts.Sum)
                     {
                         MatchedEntryWriter = (string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data) => 
-                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.tsv, opts.FullFormat, opts.PrependRootDir);
+                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.separator, opts.FullFormat, opts.PrependRootDir);
                     }
 
                     EnumOptions enumOpts = new EnumOptions()
@@ -264,7 +261,7 @@ namespace find
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
                 { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
-                { "t|tsv",      "write tab separated find_data",            v => opts.tsv = ( v != null) },
+                { "separator=", "write tab separated find_data",            v => opts.separator = v },
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
                 { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
                 { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
