@@ -16,6 +16,13 @@ namespace find
         NEWER,
         OLDER
     }
+    public enum PrintFormat
+    {
+        FULL,
+        LONG,
+        MACHINE,
+        FILENAME_ONLY
+    }
     public class Stats
     {
         public long AllBytes;
@@ -37,8 +44,7 @@ namespace find
         public string OutFilename;
         public bool show_help;
         public bool progress;
-        //public string FormatString;
-        public bool FullFormat;
+        public PrintFormat Format;
         public bool PrependRootDir;
         public bool FollowJunctions = false;
         public string FilenameWithDirs;
@@ -46,7 +52,6 @@ namespace find
         public bool Sum = false;
         public string separator = null;
         public string Encoding = null;
-        public bool printLongestFilename = false;
         public EMIT emitEntries = EMIT.BOTH;
         public int maxThreads = 32;
         public long filterFiletimeUTC = 0;
@@ -166,7 +171,7 @@ namespace find
                     if (! opts.Sum)
                     {
                         MatchedEntryWriter = (string rootDir, string dir, ref Win32.WIN32_FIND_DATA find_data) => 
-                        FormatOutput.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.separator, opts.FullFormat, opts.PrependRootDir);
+                        Print.PrintEntry(rootDir, dir, ref find_data, OutWriter, ErrorHandler, opts.separator, opts.Format, opts.PrependRootDir);
                     }
 
                     EnumOptions enumOpts = new EnumOptions()
@@ -177,7 +182,6 @@ namespace find
                         matchFiletime = matchFiletimeHandler,
                         followJunctions = opts.FollowJunctions,
                         maxDepth = opts.Depth,
-                        lookForLongestFilename = opts.printLongestFilename,
                         emit = opts.emitEntries
                     };
 
@@ -185,7 +189,7 @@ namespace find
                     opts.Dirs = opts.Dirs.Select(d => Long.GetLongFilenameNotation(d));
                     stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CtrlC.Token, opts.maxThreads);
 
-                    WriteStats(stats, opts.printLongestFilename, printMatches: enumOpts.matchFilename != null );
+                    WriteStats(stats, printMatches: enumOpts.matchFilename != null);
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
@@ -203,7 +207,7 @@ namespace find
             return 0;
         }
 
-        static void WriteStats(Stats stats, bool printLongestFilename, bool printMatches)
+        static void WriteStats(Stats stats, bool printMatches)
         {
             if (printMatches)
             {
@@ -225,12 +229,6 @@ namespace find
                         stats.AllDirs,
                         stats.AllFiles, Misc.GetPrettyFilesize(stats.AllBytes));
             }
-
-            if ( printLongestFilename)
-            {
-                Console.Error.WriteLine($"Longest filename len:  {stats.LongestFilenameLength}");
-                Console.Error.WriteLine($"Longest filename name: {stats.LongestFilename}");
-            }
         }
         static void ShowHelp(Mono.Options.OptionSet p)
         {
@@ -251,24 +249,27 @@ namespace find
             string emit = null;
             string timeExpression = null;
 
+            opts.separator = "\t";
+            opts.Format = PrintFormat.FILENAME_ONLY;
+
             var p = new Mono.Options.OptionSet() {
                 { "r|rname=",   "regex applied to the filename",                            v =>   opts.RegexPattern = v },
                 { "i|riname=",  "regex applied to the filename - case insensitive",         v => { opts.RegexPattern = v; opts.RegexCaseInsensitive = true; } },
                 { "o|out=",     "filename for result of files (UTF8)",      v => opts.OutFilename = v },
                 { "p|progress", "prints out the directory currently scanned for a little progress indicator",   v => opts.progress = (v != null) },
                 { "d|depth=",   "max depth to go down",                     v => opts.Depth = Convert.ToInt32(v) },
-                //{ "u|userformat=",  "format the output. keywords: %fullname%",  v => opts.FormatString = v },
                 { "j|follow",   "follow junctions",                         v => opts.FollowJunctions = (v != null) },
-                { "f|file=",    "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "s|sum",      "just count",                               v => opts.Sum = ( v != null) },
                 { "separator=", "write tab separated find_data",            v => opts.separator = v },
                 { "c|enc=",     "encoding default=UTF8 [16LE=UTF16 LE BOM]",v => opts.Encoding = v },
-                { "l|len",      "print out longest seen filename",          v => opts.printLongestFilename = (v != null) },
                 { "e|emit=",    "emit what {f|d|b} (files, directories, both) default: both", v => emit = v.ToUpper() },
-                { "ts=",        "{timespan;[new|old]}",                     v => timeExpression = v },
-                { "full",       "full format",                              v => opts.FullFormat = true },
+                { "l|long",     "long format",                              v => opts.Format = PrintFormat.LONG },
+                { "f|full",     "full format",                              v => opts.Format = PrintFormat.FULL },
+                { "m|machine",  "machine format (WIN32_FIND_DATA)",         v => opts.Format = PrintFormat.MACHINE },
                 { "root",       "prepend root directory",                   v => opts.PrependRootDir = true },
                 { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
+                { "ts=",        "{timespan;[new|old]}",                     v => timeExpression = v },
+                { "file=",      "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
             try

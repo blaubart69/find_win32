@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.Diagnostics;
 
-using Spi;
 using Spi.IO;
 
 namespace find

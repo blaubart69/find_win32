@@ -41,7 +41,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FormatOutput.cs" />
+    <Compile Include="Print.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="EnumDirsParallel.cs" />
     <Compile Include="RunParallel.cs" />

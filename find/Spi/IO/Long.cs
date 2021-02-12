@@ -23,36 +23,7 @@ namespace Spi.IO
             }
             return Filename;
         }
-        public static bool IsDirectory(string dir)
-        {
-            uint rc = Spi.Native.Win32.GetFileAttributes(dir);
-
-            if (rc == uint.MaxValue)
-            {
-                //int LastError = Spi.Win32.GetLastWin32Error();
-                return false;   // doesn't exist
-            }
-            /*
-            FILE_ATTRIBUTE_DIRECTORY
-            16 (0x10)
-            The handle that identifies a directory.
-            */
-            return (rc & 0x10) != 0;
-        }
-        public static int CreateFile(string Longfilename, Native.Win32.EFileAccess fAccess, FileShare fShare, FileMode fMode, FileAttributes fAttr, out SafeFileHandle handle)
-        {
-            handle = Spi.Native.Win32.CreateFileW(Longfilename, fAccess, fShare, IntPtr.Zero, fMode, fAttr, IntPtr.Zero);
-
-            if (handle.IsInvalid)
-            {
-                handle = null;
-                return System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            }
-            else
-            {
-                return 0;
-            }
-        }
+        /*
         public static bool CreatePath(string PathToCreate)
         {
             if (IsDirectory(PathToCreate))
@@ -80,5 +51,6 @@ namespace Spi.IO
             }
             return rc;
         }
+        */
     }
 }

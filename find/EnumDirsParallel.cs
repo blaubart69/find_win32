@@ -35,7 +35,6 @@ namespace find
         public Predicate<long> matchFiletime;
         public PrintFunction printHandler;
         public Action<int, string> errorHandler;
-        public bool lookForLongestFilename;
         public EMIT emit;
     }
 
@@ -109,12 +108,7 @@ namespace find
                 }
 
                 ProcessFindData(baseDir, currDepth, ref find_data);
-                // -----
-                if (_opts.lookForLongestFilename)
-                {
-                    HandleLongestFilename(baseDir, find_data.cFileName);
-                }
-                // -----
+
                 if (    (_opts.matchFilename == null)
                      || (_opts.matchFilename != null && _opts.matchFilename(find_data.cFileName)) )
                 {
@@ -155,17 +149,6 @@ namespace find
                 {
                     _opts.printHandler?.Invoke(this._rootDirname, baseDir, ref find_data);
                 }
-            }
-        }
-        private void HandleLongestFilename(string baseDir, string Filename)
-        {
-            int currLength = _rootDirname.Length + 1
-                                        + (String.IsNullOrEmpty(baseDir) ? 0 : baseDir.Length + 1)
-                                        + Filename.Length;
-            if (currLength > _stats.LongestFilenameLength)
-            {
-                _stats.LongestFilenameLength = currLength;
-                _stats.LongestFilename = Path.Combine(_rootDirname, baseDir, Filename);
             }
         }
         private static bool WalkIntoDir(ref Win32.WIN32_FIND_DATA findData, bool FollowJunctions, int currDepth, int maxDepth)
