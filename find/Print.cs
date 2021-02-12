@@ -104,6 +104,7 @@ namespace find
                 sb.Append(rootDir);
             }
             sb.Append(dir);
+            sb.Append("\\");
             sb.Append(filename);
 
             if (quote)

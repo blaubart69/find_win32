@@ -36,7 +36,6 @@ namespace find
                $" | files seen/matched: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)}) / {stats.MatchedFiles:N0} ({Misc.GetPrettyFilesize(stats.MatchedBytes)})"
              : $" | files seen: {stats.AllFiles:N0} ({Misc.GetPrettyFilesize(stats.AllBytes)})";
 
-
             ProgressHandler(
                   $"dirs enqueued/running: {queued:N0}/{running}"
                 + filesLine

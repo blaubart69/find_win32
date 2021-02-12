@@ -56,6 +56,7 @@ namespace find
         public int maxThreads = 32;
         public long filterFiletimeUTC = 0;
         public FiletimeSearch KindOfTimeSearch;
+        public bool printDuration = false;
     }
     class Program
     {
@@ -187,12 +188,17 @@ namespace find
 
                     Stats stats;
                     opts.Dirs = opts.Dirs.Select(d => Long.GetLongFilenameNotation(d));
+                    DateTime start = DateTime.Now;
                     stats = RunParallel.Run(opts.Dirs, enumOpts, ProgressHandler, CtrlC.Token, opts.maxThreads);
-
+                    TimeSpan duration = DateTime.Now - start;
                     WriteStats(stats, printMatches: enumOpts.matchFilename != null);
                     if (ErrWriter.hasDataWritten())
                     {
                         Console.Error.WriteLine("\nerrors were logged to file [{0}]", ErrFilename);
+                    }
+                    if (opts.printDuration)
+                    {
+                        Console.Out.WriteLine($"duration: {Misc.NiceDuration2(duration)}");
                     }
                     
                 }
@@ -270,6 +276,7 @@ namespace find
                 { "x|threads=", "max threads to use for given directory",   (int v) => opts.maxThreads = v },
                 { "ts=",        "{timespan;[new|old]}",                     v => timeExpression = v },
                 { "file=",      "directory names line by line in a file",   v => opts.FilenameWithDirs = v },
+                { "duration",   "print duration",                           v => opts.printDuration = (v != null) },
                 { "h|help",     "show this message and exit",               v => opts.show_help = v != null }
             };
             try
@@ -280,12 +287,6 @@ namespace find
                 {
                     Console.Error.WriteLine("pattern parsed for rname [{0}]", opts.RegexPattern);
                 }
-                /*
-                if (!String.IsNullOrEmpty(opts.FormatString))
-                {
-                    Console.Error.WriteLine("FormatString [{0}]", opts.FormatString);
-                }
-                */
 
                 if (!String.IsNullOrEmpty(opts.FilenameWithDirs))
                 {
@@ -294,7 +295,6 @@ namespace find
                         Console.Error.WriteLine("E: The file you specified with the option -d does not exist. [{0}]", opts.FilenameWithDirs);
                         return null;
                     }
-                    //opts.Dirs = StringTools.TextFileByLine(opts.FilenameWithDirs);
                     opts.Dirs = File.ReadLines(opts.FilenameWithDirs);
                 }
                 else if (opts.Dirs.Count() == 0)
