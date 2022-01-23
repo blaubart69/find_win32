@@ -157,7 +157,7 @@ namespace Spi.Native
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SystemTimeToFileTime(ref SYSTEMTIME st, out System.Runtime.InteropServices.ComTypes.FILETIME ft);
 
-        
+
 
         /*
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -173,5 +173,27 @@ namespace Spi.Native
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CloseHandle(IntPtr hObject);
         */
+
+        public enum FINDEX_INFO_LEVELS
+        {
+            FindExInfoStandard = 0,
+            FindExInfoBasic = 1
+        }
+
+        public enum FINDEX_SEARCH_OPS
+        {
+            FindExSearchNameMatch = 0,
+            FindExSearchLimitToDirectories = 1,
+            FindExSearchLimitToDevices = 2
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern SafeFindHandle FindFirstFileExW(
+            string lpFileName,
+            FINDEX_INFO_LEVELS fInfoLevelId,
+            ref WIN32_FIND_DATA lpFindFileData,
+            FINDEX_SEARCH_OPS fSearchOp,
+            IntPtr lpSearchFilter,
+            int dwAdditionalFlags);
     }
 }

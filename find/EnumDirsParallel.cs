@@ -86,7 +86,14 @@ namespace find
             }
 
             Win32.WIN32_FIND_DATA find_data = new Win32.WIN32_FIND_DATA();
-            using (SafeFindHandle SearchHandle = Win32.FindFirstFile(FullDir + "\\*", ref find_data))
+            //using (SafeFindHandle SearchHandle = Win32.FindFirstFile(FullDir + "\\*", ref find_data))
+            using (SafeFindHandle SearchHandle = Win32.FindFirstFileExW(
+                FullDir + "\\*"
+                , Win32.FINDEX_INFO_LEVELS.FindExInfoStandard
+                , ref find_data
+                , Win32.FINDEX_SEARCH_OPS.FindExSearchNameMatch
+                , IntPtr.Zero
+                , 2 ) )
             {
                 if (SearchHandle.IsInvalid)
                 {
